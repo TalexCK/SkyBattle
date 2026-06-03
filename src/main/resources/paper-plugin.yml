@@ -1,0 +1,12 @@
+name: SkyBattle
+version: '${project.version}'
+main: com.talexck.skybattle.SkyBattlePlugin
+description: 基于 Paper 1.21.11 的 SkyBattle 插件。
+author: alextang
+api-version: '1.21'
+commands:
+  skybattle:
+    description: 显示 SkyBattle 插件状态。
+    usage: /skybattle
+    aliases:
+      - sb
