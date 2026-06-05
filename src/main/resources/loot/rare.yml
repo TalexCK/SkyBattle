@@ -1,0 +1,54 @@
+variants:
+  - items:
+      - name: 爆炸保护 IV 铁胸甲
+        material: IRON_CHESTPLATE
+        enchantments:
+          blast_protection: 4
+  - items:
+      - name: 爆炸保护 IV 铁护腿
+        material: IRON_LEGGINGS
+        enchantments:
+          blast_protection: 4
+  - items:
+      - name: 金苹果
+        material: GOLDEN_APPLE
+  - items:
+      - name: 铁剑
+        material: IRON_SWORD
+      - name: TNT
+        material: TNT
+        amount: 2
+  - items:
+      - name: 钻石剑
+        material: DIAMOND_SWORD
+      - name: 苦力怕刷怪蛋
+        material: CREEPER_SPAWN_EGG
+  - items:
+      - name: 铁靴子
+        material: IRON_BOOTS
+      - name: 生命恢复火花
+        alias: spark_of_regeneration
+  - items:
+      - name: 钻石靴子
+        material: DIAMOND_BOOTS
+      - name: 箭
+        material: ARROW
+        amount: 3
+  - items:
+      - name: 箭
+        material: ARROW
+        amount: 2
+      - name: 脚手架
+        material: SCAFFOLDING
+        amount: 7
+  - items:
+      - name: TNT
+        material: TNT
+      - name: 脚手架
+        material: SCAFFOLDING
+        amount: 7
+  - items:
+      - name: 净化宝珠
+        alias: orb_of_cleansing
+      - name: 快速中毒球
+        alias: quick_timed_orb_of_poison

@@ -1,0 +1,14 @@
+countdown-seconds: 10
+max-players: 32
+team-size: 4
+default-initial-border-radius: 120.0
+save-world-on-unload: false
+
+return:
+  world: world
+  point:
+    x: 0.5
+    y: 80.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0

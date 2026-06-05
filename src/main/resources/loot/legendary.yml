@@ -1,0 +1,78 @@
+variants:
+  - items:
+      - name: 钻石剑
+        material: DIAMOND_SWORD
+        amount: 2
+      - name: 箭
+        material: ARROW
+        amount: 4
+      - name: 弩
+        material: CROSSBOW
+  - items:
+      - name: 钻石斧
+        material: DIAMOND_AXE
+        amount: 2
+      - name: 钻石靴子
+        material: DIAMOND_BOOTS
+        amount: 2
+      - name: 瞬间伤害球
+        alias: timed_orb_of_harming
+  - items:
+      - name: 钻石胸甲
+        material: DIAMOND_CHESTPLATE
+        amount: 2
+      - name: 钻石护腿
+        material: DIAMOND_LEGGINGS
+        amount: 2
+      - name: 快速中毒球
+        alias: quick_timed_orb_of_poison
+  - items:
+      - name: 钻石胸甲
+        material: DIAMOND_CHESTPLATE
+        amount: 2
+      - name: 箭
+        material: ARROW
+        amount: 8
+      - name: 飘浮火花
+        alias: spark_of_levitation
+        amount: 2
+  - items:
+      - name: 钻石靴子
+        material: DIAMOND_BOOTS
+        amount: 2
+      - name: 蜘蛛网
+        material: COBWEB
+        amount: 4
+      - name: 瞬间伤害球
+        alias: timed_orb_of_harming
+        amount: 2
+  - items:
+      - name: 快速装填 I 重弩
+        material: CROSSBOW
+        enchantments:
+          quick_charge: 1
+      - name: 末影珍珠
+        material: ENDER_PEARL
+        amount: 2
+      - name: 净化宝珠
+        alias: orb_of_cleansing
+        amount: 2
+  - items:
+      - name: 末影珍珠
+        material: ENDER_PEARL
+        amount: 2
+      - name: TNT
+        material: TNT
+        amount: 4
+      - name: 飘浮火花
+        alias: spark_of_levitation
+        amount: 2
+  - items:
+      - name: 苦力怕刷怪蛋
+        material: CREEPER_SPAWN_EGG
+        amount: 2
+      - name: 岩浆桶
+        material: LAVA_BUCKET
+      - name: 快速中毒球
+        alias: quick_timed_orb_of_poison
+        amount: 2

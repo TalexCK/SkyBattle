@@ -1,0 +1,87 @@
+variants:
+  - items:
+      - name: 击退 I 石剑
+        material: STONE_SWORD
+        amount: 4
+        enchantments:
+          knockback: 1
+      - name: 铁护腿
+        material: IRON_LEGGINGS
+        amount: 4
+      - name: 飘浮火花
+        alias: spark_of_levitation
+        amount: 2
+  - items:
+      - name: 铁剑
+        material: IRON_SWORD
+        amount: 4
+      - name: 钻石护腿
+        material: DIAMOND_LEGGINGS
+        amount: 4
+      - name: 瞬间伤害球
+        alias: timed_orb_of_harming
+        amount: 2
+  - items:
+      - name: 钻石剑
+        material: DIAMOND_SWORD
+        amount: 4
+      - name: 铁靴子
+        material: IRON_BOOTS
+        amount: 4
+      - name: 苦力怕刷怪蛋
+        material: CREEPER_SPAWN_EGG
+        amount: 2
+  - items:
+      - name: 石斧
+        material: STONE_AXE
+        amount: 4
+      - name: 钻石靴子
+        material: DIAMOND_BOOTS
+        amount: 4
+      - name: 岩浆桶
+        material: LAVA_BUCKET
+        amount: 2
+  - items:
+      - name: 铁斧
+        material: IRON_AXE
+        amount: 4
+      - name: 铁靴子
+        material: IRON_BOOTS
+        amount: 4
+      - name: 净化宝珠
+        alias: orb_of_cleansing
+        amount: 4
+  - items:
+      - name: 冲击 I 弓
+        material: BOW
+        amount: 4
+        enchantments:
+          punch: 1
+      - name: 铁护腿
+        material: IRON_LEGGINGS
+        amount: 4
+      - name: TNT
+        material: TNT
+        amount: 2
+  - items:
+      - name: 力量 I 弓
+        material: BOW
+        amount: 4
+        enchantments:
+          power: 1
+      - name: 铁靴子
+        material: IRON_BOOTS
+        amount: 4
+      - name: 苦力怕刷怪蛋
+        material: CREEPER_SPAWN_EGG
+        amount: 2
+  - items:
+      - name: 钓鱼竿
+        material: FISHING_ROD
+        amount: 4
+      - name: 钻石靴子
+        material: DIAMOND_BOOTS
+        amount: 4
+      - name: 蜘蛛网
+        material: COBWEB
+        amount: 4
