@@ -5,3 +5,5 @@ target/
 .DS_Store
 .bloop/
 .metals/
+src/main/resources/resourcepacks/
+src/main/resources/resourcepack-src/

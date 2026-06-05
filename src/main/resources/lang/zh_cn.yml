@@ -1,0 +1,68 @@
+plugin:
+  missing-minigamelib: "未找到 MinigameLib，SkyBattle 无法启动。"
+  enabled: "SkyBattle 插件已启用。"
+  disabled: "SkyBattle 插件已禁用。"
+  templates-registered: "已注册 {count} 个 SkyBattle arena 模板。"
+command:
+  no-permission: "你没有权限执行这个命令。"
+  reload-success: "SkyBattle 配置已重载。"
+  reload-failed: "配置重载失败：{error}"
+  templates-header: "Arena 模板："
+  running-header: "运行中 Arena：{count}"
+  usage-start: "用法：/skybattle start <arena>"
+  no-world-players: "当前世界没有可加入的玩家。"
+  max-players-exceeded: "玩家数量超过上限：{max}"
+  start-success: "SkyBattle 已启动：{arenaId}，玩家 {players} 人。"
+  start-failed: "Arena 启动失败：{error}"
+  create-failed: "Arena 创建失败：{error}"
+  usage-stop: "用法：/skybattle stop <arenaId>"
+  stop-success: "Arena 已停止：{arenaId}"
+  stop-failed: "Arena 停止失败：{error}"
+  usage-destroy: "用法：/skybattle destroy <arenaId>"
+  destroy-success: "Arena 已销毁：{arenaId}"
+  destroy-failed: "Arena 销毁失败：{error}"
+  setup-player-only: "setup 只能由玩家执行。"
+  usage-setup: "用法：/skybattle setup <arena> <worldName>"
+  help-header: "SkyBattle 命令："
+resource-pack:
+  prompt: "加载 SkyBattle 材质包以显示分级箱子。"
+arena:
+  scoreboard-title: "Sky Battle"
+  scoreboard-lines:
+    - "目标：成为最后存活的队伍"
+    - "队伍：8 x 4"
+    - "时长：5 分钟"
+  messages:
+    created:
+      - "Sky Battle arena 已创建。"
+    teleport:
+      - "正在传送到 Sky Battle arena。"
+    countdown: "Sky Battle 将在 %seconds% 秒后开始。"
+    started:
+      - "Sky Battle 开始！"
+    ended:
+      - "Sky Battle 已结束。"
+    destroyed:
+      - "Sky Battle arena 已销毁。"
+setup:
+  already-running: "你已经在 setup 流程中。输入 cancel 可取消。"
+  template-world-not-found: "未找到模板世界目录：arena/{worldName}"
+  copy-world-failed: "复制 setup 世界失败：{error}"
+  load-world-failed: "加载 setup 世界失败。"
+  cancelled: "SkyBattle setup 已取消。"
+  radius-invalid: "请输入数字，例如 120。"
+  boundary-wall-invalid: "请输入：x1 x2 z1 z2，或 skip。"
+  loot-chat-hint: "当前阶段请左键标记箱子，或输入 done 进入下一类。"
+  boundary-stage-invalid: "请输入：x距离 z距离 延迟秒 收缩秒，或 done。"
+  boundary-stage-added: "已添加边界阶段。继续输入下一段，或 done 完成。"
+  marker-needed: "当前阶段请使用木斧左键标记方块。"
+  marker-not-needed: "当前阶段不需要标记方块。"
+  loot-recorded: "已记录 {tier} 箱子：{point}。输入 done 进入下一类。"
+  prompt-center: "Setup 1/6：用木斧左键标记 arena 中心点。"
+  prompt-radius: "Setup 2/6：聊天输入初始边界半径，例如 120。"
+  prompt-boundary-wall: "Setup 3/6：聊天输入初始边界墙 x1 x2 z1 z2，或输入 skip。"
+  prompt-team-spawns: "Setup 4/6：标记 {team} 队 4 个出生点，当前 {count}/4。"
+  prompt-loot-chests: "Setup 5/6：标记 {tier} 箱子。标完输入 done。"
+  prompt-boundary-stages: "Setup 6/6：输入边界阶段 x距离 z距离 延迟秒 收缩秒；全部完成输入 done。"
+  saved: "SkyBattle setup 已保存：arena/{arena}.yml。请执行 /sb reload。"
+  save-failed: "保存 setup 配置失败：{error}"

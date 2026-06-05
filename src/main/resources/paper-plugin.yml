@@ -26,6 +26,7 @@ permissions:
       skybattle.command.start: true
       skybattle.command.stop: true
       skybattle.command.destroy: true
+      skybattle.command.setup: true
   skybattle.command.reload:
     description: 允许重载 SkyBattle 配置。
     default: op
@@ -40,4 +41,7 @@ permissions:
     default: op
   skybattle.command.destroy:
     description: 允许销毁 SkyBattle arena。
+    default: op
+  skybattle.command.setup:
+    description: 允许进行 SkyBattle arena 游戏内 setup。
     default: op

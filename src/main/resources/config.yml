@@ -1,4 +1,5 @@
 countdown-seconds: 10
+language: zh_cn
 max-players: 32
 team-size: 4
 default-initial-border-radius: 120.0
