@@ -5,11 +5,13 @@ import com.talexck.minigamelib.api.arena.ArenaBoundaryWall;
 import com.talexck.minigamelib.api.arena.ArenaPoint;
 import com.talexck.minigamelib.api.arena.ArenaTeamColor;
 import com.talexck.minigamelib.api.arena.ArenaTeamSpawn;
+import com.talexck.minigamelib.api.arena.ArenaVerticalBoundary;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,21 +28,36 @@ public final class SkyBattleConfigLoader {
 
   public SkyBattleLoadedConfig load() {
     plugin.saveDefaultConfig();
-    plugin.saveResource("arena/default.yml", false);
 
     SkyBattleGlobalConfig global = loadGlobal(plugin.getConfig());
     List<SkyBattleArenaConfig> arenas = loadArenas(plugin.getDataFolder(), global);
-    if (arenas.isEmpty()) {
-      throw new SkyBattleConfigException("arena 目录中没有可用的 arena 配置");
-    }
     return new SkyBattleLoadedConfig(global, arenas);
   }
 
   private SkyBattleGlobalConfig loadGlobal(ConfigurationSection config) {
+    String fallbackWorld = requireString(config, "return.world");
+    ArenaPoint fallbackPoint = point(requireSection(config, "return.point"), "return.point");
+    ConfigurationSection lobby = config.getConfigurationSection("lobby");
+    String lobbyWorld = lobby == null ? fallbackWorld : lobby.getString("world", fallbackWorld);
+    ArenaPoint lobbyPoint = lobby == null || lobby.getConfigurationSection("spawn") == null
+        ? fallbackPoint
+        : point(lobby.getConfigurationSection("spawn"), "lobby.spawn");
+    ConfigurationSection lobbyScoreboard =
+        lobby == null ? null : lobby.getConfigurationSection("scoreboard");
+    String lobbyScoreboardTitle = lobbyScoreboard == null
+        ? ""
+        : lobbyScoreboard.getString("title", "");
+    List<String> lobbyScoreboardLines = lobbyScoreboard == null
+        ? List.of()
+        : lobbyScoreboard.getStringList("lines");
     return new SkyBattleGlobalConfig(
         config.getInt("countdown-seconds", 10),
-        requireString(config, "return.world"),
-        point(requireSection(config, "return.point"), "return.point"),
+        lobbyWorld,
+        lobbyPoint,
+        lobbyScoreboardTitle,
+        lobbyScoreboardLines,
+        fallbackWorld,
+        fallbackPoint,
         config.getInt("max-players", 32),
         config.getInt("team-size", 4),
         config.getDouble("default-initial-border-radius", 120.0),
@@ -59,6 +76,7 @@ public final class SkyBattleConfigLoader {
     List<SkyBattleArenaConfig> arenas = new ArrayList<>();
     for (File file : sortedFiles) {
       YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+      ensureVerticalBoundaryDefaults(file, yaml);
       arenas.add(loadArena(file, yaml, global));
     }
     return List.copyOf(arenas);
@@ -78,6 +96,7 @@ public final class SkyBattleConfigLoader {
         center,
         radius,
         optionalBoundaryWall(config.getConfigurationSection("initial-boundary-wall")),
+        verticalBoundary(config.getConfigurationSection("vertical-boundary")),
         boundaryStages(config.getMapList("boundary-stages")),
         teamSpawns(config.getMapList("team-spawns")),
         points(config.getList("commonchest"), "commonchest"),
@@ -92,12 +111,44 @@ public final class SkyBattleConfigLoader {
     for (java.util.Map<?, ?> entry : entries) {
       double x = number(entry, "x-distance-from-center", 0.0);
       double z = number(entry, "z-distance-from-center", x);
+      double lowerY = number(entry, "lower-y", ArenaVerticalBoundary.DISABLED);
+      double upperY = number(entry, "upper-y", ArenaVerticalBoundary.DISABLED);
       long delay = longNumber(entry, "delay-seconds", 0L);
       long duration = longNumber(entry, "duration-seconds", 1L);
-      stages.add(new ArenaBoundaryStage(x, z, Duration.ofSeconds(delay),
+      stages.add(new ArenaBoundaryStage(x, z, lowerY, upperY, Duration.ofSeconds(delay),
           Duration.ofSeconds(duration)));
     }
     return List.copyOf(stages);
+  }
+
+  private void ensureVerticalBoundaryDefaults(File file, YamlConfiguration yaml) {
+    boolean changed = false;
+    if (!yaml.isSet("vertical-boundary.lower-y")) {
+      yaml.set("vertical-boundary.lower-y", ArenaVerticalBoundary.DISABLED);
+      changed = true;
+    }
+    if (!yaml.isSet("vertical-boundary.upper-y")) {
+      yaml.set("vertical-boundary.upper-y", ArenaVerticalBoundary.DISABLED);
+      changed = true;
+    }
+    if (!changed) {
+      return;
+    }
+    try {
+      yaml.save(file);
+    } catch (IOException exception) {
+      throw new SkyBattleConfigException("写入上下边界默认值失败: " + file.getName(), exception);
+    }
+  }
+
+  private ArenaVerticalBoundary verticalBoundary(ConfigurationSection section) {
+    if (section == null) {
+      return new ArenaVerticalBoundary(ArenaVerticalBoundary.DISABLED,
+          ArenaVerticalBoundary.DISABLED);
+    }
+    return new ArenaVerticalBoundary(
+        section.getDouble("lower-y", ArenaVerticalBoundary.DISABLED),
+        section.getDouble("upper-y", ArenaVerticalBoundary.DISABLED));
   }
 
   private List<ArenaTeamSpawn> teamSpawns(List<java.util.Map<?, ?>> entries) {
@@ -119,11 +170,15 @@ public final class SkyBattleConfigLoader {
     if (section == null) {
       return null;
     }
+    double x1 = section.getDouble("x1");
+    double x2 = section.getDouble("x2");
+    double z1 = section.getDouble("z1");
+    double z2 = section.getDouble("z2");
     return new ArenaBoundaryWall(
-        section.getDouble("x1"),
-        section.getDouble("x2"),
-        section.getDouble("z1"),
-        section.getDouble("z2"));
+        Math.min(x1, x2),
+        Math.max(x1, x2),
+        Math.min(z1, z2),
+        Math.max(z1, z2));
   }
 
   private List<ArenaPoint> points(List<?> entries, String path) {

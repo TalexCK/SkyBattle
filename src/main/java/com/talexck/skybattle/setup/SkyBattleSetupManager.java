@@ -10,7 +10,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.block.Block;
@@ -139,7 +138,7 @@ public final class SkyBattleSetupManager implements Listener {
       }
       case BOUNDARY_WALL -> {
         if (message.equalsIgnoreCase("skip")) {
-          session.step(SetupStep.TEAM_SPAWNS);
+          session.step(SetupStep.VERTICAL_BOUNDARY);
           prompt(player, session);
           return;
         }
@@ -148,7 +147,23 @@ public final class SkyBattleSetupManager implements Listener {
           player.sendMessage(Component.text(language.text("setup.boundary-wall-invalid")));
           return;
         }
-        session.boundaryWall(values);
+        session.boundaryWall(normalizeBoundaryWall(values));
+        session.step(SetupStep.VERTICAL_BOUNDARY);
+        prompt(player, session);
+      }
+      case VERTICAL_BOUNDARY -> {
+        if (message.equalsIgnoreCase("skip")) {
+          session.verticalBoundary(new double[] {-1.0, -1.0});
+          session.step(SetupStep.TEAM_SPAWNS);
+          prompt(player, session);
+          return;
+        }
+        double[] values = parseDoubles(message, 2);
+        if (values == null || !validVerticalBoundary(values)) {
+          player.sendMessage(Component.text(language.text("setup.vertical-boundary-invalid")));
+          return;
+        }
+        session.verticalBoundary(values);
         session.step(SetupStep.TEAM_SPAWNS);
         prompt(player, session);
       }
@@ -169,8 +184,8 @@ public final class SkyBattleSetupManager implements Listener {
           finish(player, session);
           return;
         }
-        double[] values = parseDoubles(message, 4);
-        if (values == null) {
+        double[] values = parseBoundaryStage(message);
+        if (values == null || !validVerticalBoundary(new double[] {values[2], values[3]})) {
           player.sendMessage(Component.text(language.text("setup.boundary-stage-invalid")));
           return;
         }
@@ -194,16 +209,26 @@ public final class SkyBattleSetupManager implements Listener {
         prompt(player, session);
       }
       case TEAM_SPAWNS -> {
-        session.currentTeamSpawns().add(point);
+        session.currentTeamSpawns().add(spawnPointFromFootBlock(block));
         if (session.currentTeamSpawns().size() >= 4) {
+          if (!validTeamSpawnCorners(session.currentTeamSpawns())) {
+            session.currentTeamSpawns().clear();
+            player.sendMessage(Component.text(language.text("setup.team-spawns-invalid")));
+            prompt(player, session);
+            return;
+          }
           session.advanceTeam();
         }
         prompt(player, session);
       }
       case LOOT_CHESTS -> {
-        session.currentLootPoints().add(point);
-        markLootChestBlock(block, session.currentLootTier());
-        player.sendMessage(Component.text(language.text("setup.loot-recorded", "{tier}",
+        if (toggleLootChest(session, point)) {
+          markLootChestBlock(block, session.currentLootTier());
+          player.sendMessage(Component.text(language.text("setup.loot-recorded", "{tier}",
+              session.currentLootTier().fileName(), "{point}", format(point))));
+          return;
+        }
+        player.sendMessage(Component.text(language.text("setup.loot-removed", "{tier}",
             session.currentLootTier().fileName(), "{point}", format(point))));
       }
       default -> player.sendMessage(Component.text(language.text("setup.marker-not-needed")));
@@ -216,6 +241,8 @@ public final class SkyBattleSetupManager implements Listener {
       case RADIUS -> player.sendMessage(Component.text(language.text("setup.prompt-radius")));
       case BOUNDARY_WALL -> player
           .sendMessage(Component.text(language.text("setup.prompt-boundary-wall")));
+      case VERTICAL_BOUNDARY -> player
+          .sendMessage(Component.text(language.text("setup.prompt-vertical-boundary")));
       case TEAM_SPAWNS -> player
           .sendMessage(Component.text(language.text("setup.prompt-team-spawns", "{team}",
               session.currentTeamColor(), "{count}", session.currentTeamSpawns().size())));
@@ -252,10 +279,13 @@ public final class SkyBattleSetupManager implements Listener {
       yaml.set("initial-boundary-wall.z1", session.boundaryWall()[2]);
       yaml.set("initial-boundary-wall.z2", session.boundaryWall()[3]);
     }
+    yaml.set("vertical-boundary.lower-y", session.verticalBoundary()[0]);
+    yaml.set("vertical-boundary.upper-y", session.verticalBoundary()[1]);
     List<Map<String, Object>> stages = new ArrayList<>();
     for (double[] stage : session.boundaryStages()) {
       stages.add(Map.of("x-distance-from-center", stage[0], "z-distance-from-center", stage[1],
-          "delay-seconds", (long) stage[2], "duration-seconds", (long) stage[3]));
+          "lower-y", stage[2], "upper-y", stage[3], "delay-seconds", (long) stage[4],
+          "duration-seconds", (long) stage[5]));
     }
     yaml.set("boundary-stages", stages);
     yaml.set("team-spawns", teamSpawnMaps(session));
@@ -283,11 +313,67 @@ public final class SkyBattleSetupManager implements Listener {
   }
 
   private void markLootChestBlock(Block block, SkyBattleLootTier tier) {
-    block.setType(Material.CHEST);
+    block.setType(tier.chestMaterial());
     if (block.getState() instanceof Chest chest) {
       chest.customName(Component.text(tier.chestDisplayName()));
       chest.update(true);
     }
+  }
+
+  private boolean toggleLootChest(SetupSession session, ArenaPoint point) {
+    List<ArenaPoint> points = session.currentLootPoints();
+    int existingIndex = indexOfSameBlock(points, point);
+    if (existingIndex >= 0) {
+      points.remove(existingIndex);
+      return false;
+    }
+    points.add(point);
+    return true;
+  }
+
+  private int indexOfSameBlock(List<ArenaPoint> points, ArenaPoint point) {
+    for (int index = 0; index < points.size(); index++) {
+      ArenaPoint existing = points.get(index);
+      if (blockCoordinate(existing.x()) == blockCoordinate(point.x())
+          && blockCoordinate(existing.y()) == blockCoordinate(point.y())
+          && blockCoordinate(existing.z()) == blockCoordinate(point.z())) {
+        return index;
+      }
+    }
+    return -1;
+  }
+
+  private int blockCoordinate(double value) {
+    return (int) Math.floor(value);
+  }
+
+  private ArenaPoint spawnPointFromFootBlock(Block block) {
+    return new ArenaPoint(block.getX() + 0.5, block.getY() + 1.1, block.getZ() + 0.5, 0f, 0f);
+  }
+
+  private boolean validTeamSpawnCorners(List<ArenaPoint> points) {
+    if (points.size() != 4) {
+      return false;
+    }
+    int y = blockCoordinate(points.get(0).y());
+    int minX = points.stream().mapToInt(point -> blockCoordinate(point.x())).min().orElse(0);
+    int maxX = points.stream().mapToInt(point -> blockCoordinate(point.x())).max().orElse(0);
+    int minZ = points.stream().mapToInt(point -> blockCoordinate(point.z())).min().orElse(0);
+    int maxZ = points.stream().mapToInt(point -> blockCoordinate(point.z())).max().orElse(0);
+    if (maxX - minX != 2 || maxZ - minZ != 2) {
+      return false;
+    }
+    java.util.Set<String> corners = new java.util.HashSet<>();
+    for (ArenaPoint point : points) {
+      int x = blockCoordinate(point.x());
+      int pointY = blockCoordinate(point.y());
+      int z = blockCoordinate(point.z());
+      if (pointY != y || (x != minX && x != maxX) || (z != minZ && z != maxZ)) {
+        return false;
+      }
+      corners.add(x + ":" + z);
+    }
+    return corners.size() == 4;
   }
 
   private void cleanup(SetupSession session, Player player, boolean teleportBack) {
@@ -350,6 +436,40 @@ public final class SkyBattleSetupManager implements Listener {
     }
   }
 
+  private double[] parseBoundaryStage(String message) {
+    String[] parts = message.split("\\s+");
+    if (parts.length != 4 && parts.length != 6) {
+      return null;
+    }
+    double[] values = new double[parts.length];
+    try {
+      for (int index = 0; index < parts.length; index++) {
+        values[index] = Double.parseDouble(parts[index]);
+      }
+    } catch (NumberFormatException exception) {
+      return null;
+    }
+    if (parts.length == 4) {
+      return new double[] {values[0], values[1], -1.0, -1.0, values[2], values[3]};
+    }
+    return values;
+  }
+
+  private double[] normalizeBoundaryWall(double[] values) {
+    return new double[] {
+        Math.min(values[0], values[1]),
+        Math.max(values[0], values[1]),
+        Math.min(values[2], values[3]),
+        Math.max(values[2], values[3])
+    };
+  }
+
+  private boolean validVerticalBoundary(double[] values) {
+    double lower = values[0];
+    double upper = values[1];
+    return lower == -1.0 || upper == -1.0 || lower <= upper;
+  }
+
   private String format(ArenaPoint point) {
     return trim(point.x()) + "," + trim(point.y()) + "," + trim(point.z()) + "," + trim(point.yaw())
         + "," + trim(point.pitch());
@@ -363,7 +483,7 @@ public final class SkyBattleSetupManager implements Listener {
   }
 
   private enum SetupStep {
-    CENTER, RADIUS, BOUNDARY_WALL, TEAM_SPAWNS, LOOT_CHESTS, BOUNDARY_STAGES
+    CENTER, RADIUS, BOUNDARY_WALL, VERTICAL_BOUNDARY, TEAM_SPAWNS, LOOT_CHESTS, BOUNDARY_STAGES
   }
 
   private static final class SetupSession {
@@ -382,6 +502,7 @@ public final class SkyBattleSetupManager implements Listener {
     private ArenaPoint center;
     private double initialBorderRadius = 120.0;
     private double[] boundaryWall;
+    private double[] verticalBoundary = new double[] {-1.0, -1.0};
     private int teamIndex;
     private int lootTierIndex;
 
@@ -453,6 +574,14 @@ public final class SkyBattleSetupManager implements Listener {
 
     private void boundaryWall(double[] boundaryWall) {
       this.boundaryWall = boundaryWall;
+    }
+
+    private double[] verticalBoundary() {
+      return verticalBoundary;
+    }
+
+    private void verticalBoundary(double[] verticalBoundary) {
+      this.verticalBoundary = verticalBoundary;
     }
 
     private List<double[]> boundaryStages() {

@@ -3,8 +3,12 @@ package com.talexck.skybattle;
 import com.talexck.minigamelib.api.MinigameLibrary;
 import com.talexck.minigamelib.api.arena.ArenaCreateRequest;
 import com.talexck.minigamelib.api.arena.ArenaHandle;
+import com.talexck.minigamelib.api.arena.ArenaPoint;
 import com.talexck.minigamelib.api.arena.ArenaService;
+import com.talexck.minigamelib.api.arena.ArenaStatus;
 import com.talexck.minigamelib.api.arena.ArenaStopReason;
+import com.talexck.minigamelib.api.lobby.LobbyService;
+import com.talexck.minigamelib.api.lobby.LobbySettings;
 import com.talexck.minigamelib.api.setup.SetupService;
 import com.talexck.skybattle.config.SkyBattleArenaConfig;
 import com.talexck.skybattle.config.SkyBattleConfigException;
@@ -16,11 +20,16 @@ import com.talexck.skybattle.game.SkyBattleLootTableLoader;
 import com.talexck.skybattle.setup.SkyBattleSetupManager;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
+import org.bukkit.command.CommandMap;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionDefault;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -31,15 +40,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 public final class SkyBattlePlugin extends JavaPlugin {
 
+  private static final String ADMIN_PERMISSION = "skybattle.admin";
   private static final String PERMISSION_PREFIX = "skybattle.command.";
   private static final List<String> SUBCOMMANDS =
-      List.of("reload", "list", "start", "stop", "destroy", "setup");
+      List.of("reload", "list", "start", "stop", "destroy", "setup", "spawn");
 
   private ArenaService arenas;
   private SetupService setup;
+  private LobbyService lobby;
   private SkyBattleSetupManager setupManager;
   private SkyBattleLanguage language;
   private SkyBattleLoadedConfig loadedConfig;
@@ -48,6 +60,8 @@ public final class SkyBattlePlugin extends JavaPlugin {
   @Override
   public void onEnable() {
     this.language = new SkyBattleLanguage(this);
+    registerPermissions();
+    registerRuntimeCommand();
     MinigameLibrary library = Bukkit.getServicesManager().load(MinigameLibrary.class);
     if (library == null) {
       getLogger().severe(language.text("plugin.missing-minigamelib"));
@@ -56,6 +70,7 @@ public final class SkyBattlePlugin extends JavaPlugin {
     }
     this.arenas = library.arenas();
     this.setup = library.setup();
+    this.lobby = library.lobby();
     this.setupManager = new SkyBattleSetupManager(this, setup, language);
     reloadSkyBattle();
     getLogger().info(language.text("plugin.enabled"));
@@ -72,7 +87,8 @@ public final class SkyBattlePlugin extends JavaPlugin {
   @Override
   public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command,
       @NotNull String label, String @NotNull [] args) {
-    if (!command.getName().equalsIgnoreCase("skybattle")) {
+    if (!command.getName().equalsIgnoreCase("skb")
+        && !command.getName().equalsIgnoreCase("skybattle")) {
       return false;
     }
 
@@ -94,6 +110,7 @@ public final class SkyBattlePlugin extends JavaPlugin {
       case "stop" -> handleStop(sender, args);
       case "destroy" -> handleDestroy(sender, args);
       case "setup" -> handleSetup(sender, args);
+      case "spawn" -> handleSpawn(sender);
       default -> sendHelp(sender, label);
     }
     return true;
@@ -102,7 +119,8 @@ public final class SkyBattlePlugin extends JavaPlugin {
   @Override
   public @Nullable List<String> onTabComplete(@NotNull CommandSender sender,
       @NotNull Command command, @NotNull String label, String @NotNull [] args) {
-    if (!command.getName().equalsIgnoreCase("skybattle")) {
+    if (!command.getName().equalsIgnoreCase("skb")
+        && !command.getName().equalsIgnoreCase("skybattle")) {
       return List.of();
     }
     if (args.length == 1) {
@@ -134,7 +152,15 @@ public final class SkyBattlePlugin extends JavaPlugin {
       arenas.registerTemplate(factory.createTemplate(arena));
     }
     this.loadedConfig = config;
+    configureLobby(config.global());
     getLogger().info(language.text("plugin.templates-registered", "{count}", config.arenas().size()));
+  }
+
+  private void configureLobby(com.talexck.skybattle.config.SkyBattleGlobalConfig global) {
+    if (lobby != null) {
+      lobby.configure(new LobbySettings(global.lobbyWorldName(), global.lobbySpawnPoint(),
+          global.lobbyScoreboardTitle(), global.lobbyScoreboardLines()));
+    }
   }
 
   private void handleReload(CommandSender sender) {
@@ -153,19 +179,20 @@ public final class SkyBattlePlugin extends JavaPlugin {
     loadedConfig.arenas().stream().sorted(Comparator.comparing(SkyBattleArenaConfig::id))
         .forEach(arena -> sender.sendMessage(Component
             .text("- " + arena.id() + " -> " + arena.templateWorldName(), NamedTextColor.GRAY)));
-    success(sender, language.text("command.running-header", "{count}", arenas.arenas().size()));
-    for (ArenaHandle handle : arenas.arenas()) {
+    List<ArenaHandle> runningArenas = visibleRunningArenas();
+    success(sender, language.text("command.running-header", "{count}", runningArenas.size()));
+    for (ArenaHandle handle : runningArenas) {
       sender.sendMessage(Component.text("- " + handle.arenaId() + " [" + handle.status() + "] "
           + handle.playerNames().size() + " 人", NamedTextColor.GRAY));
     }
   }
 
   private void handleStart(CommandSender sender, String[] args) {
-    if (args.length < 2) {
-      error(sender, language.text("command.usage-start"));
+    String templateId = resolveStartTemplateId(args);
+    if (templateId == null) {
+      error(sender, language.text("command.no-templates"));
       return;
     }
-    String templateId = args[1];
     String arenaId = generateArenaId(templateId);
     List<String> players = playersInCommandWorld(sender);
     if (players.isEmpty()) {
@@ -176,9 +203,14 @@ public final class SkyBattlePlugin extends JavaPlugin {
       error(sender, language.text("command.max-players-exceeded", "{max}", loadedConfig.global().maxPlayers()));
       return;
     }
+    boolean allowSinglePlayer = sender.hasPermission(ADMIN_PERMISSION);
+    if (players.size() < 2 && !allowSinglePlayer) {
+      error(sender, language.text("command.not-enough-players"));
+      return;
+    }
 
     ArenaCreateRequest request = new ArenaCreateRequest(arenaId, templateId, "skybattle_" + arenaId,
-        null, null, players, null);
+        null, null, players, null, allowSinglePlayer);
     arenas.createArena(request).thenAccept(handle -> {
       runningArenaTemplates.put(handle.arenaId(), templateId);
       arenas.startArena(handle.arenaId()).thenRun(
@@ -211,6 +243,17 @@ public final class SkyBattlePlugin extends JavaPlugin {
   private String generateArenaId(String templateId) {
     String suffix = UUID.randomUUID().toString().substring(0, 8);
     return templateId + "_" + suffix;
+  }
+
+  private String resolveStartTemplateId(String[] args) {
+    if (args.length >= 2 && !args[1].isBlank()) {
+      return args[1];
+    }
+    List<String> templates = templateIds();
+    if (templates.isEmpty()) {
+      return null;
+    }
+    return templates.get(ThreadLocalRandom.current().nextInt(templates.size()));
   }
 
   private void handleStop(CommandSender sender, String[] args) {
@@ -251,6 +294,36 @@ public final class SkyBattlePlugin extends JavaPlugin {
     setupManager.startSetup(player, args[1], args[2]);
   }
 
+  private void handleSpawn(CommandSender sender) {
+    if (!(sender instanceof Player player)) {
+      error(sender, language.text("command.spawn-player-only"));
+      return;
+    }
+    Location location = player.getLocation();
+    ArenaPoint point = new ArenaPoint(location.getX(), location.getY(), location.getZ(),
+        location.getYaw(), location.getPitch());
+    getConfig().set("lobby.world", location.getWorld().getName());
+    setConfigPoint("lobby.spawn", point);
+    getConfig().set("return.world", location.getWorld().getName());
+    setConfigPoint("return.point", point);
+    saveConfig();
+    reloadConfig();
+    if (lobby != null) {
+      List<String> lines = getConfig().getStringList("lobby.scoreboard.lines");
+      lobby.configure(new LobbySettings(location.getWorld().getName(), point,
+          getConfig().getString("lobby.scoreboard.title", ""), lines));
+    }
+    success(sender, language.text("command.spawn-success"));
+  }
+
+  private void setConfigPoint(String path, ArenaPoint point) {
+    getConfig().set(path + ".x", point.x());
+    getConfig().set(path + ".y", point.y());
+    getConfig().set(path + ".z", point.z());
+    getConfig().set(path + ".yaw", point.yaw());
+    getConfig().set(path + ".pitch", point.pitch());
+  }
+
   private void sendHelp(CommandSender sender, String label) {
     sender.sendMessage(Component.text(language.text("command.help-header"), NamedTextColor.GOLD));
     if (hasCommandPermission(sender, "reload")) {
@@ -260,7 +333,7 @@ public final class SkyBattlePlugin extends JavaPlugin {
       sender.sendMessage(Component.text("/" + label + " list", NamedTextColor.GRAY));
     }
     if (hasCommandPermission(sender, "start")) {
-      sender.sendMessage(Component.text("/" + label + " start <arena>", NamedTextColor.GRAY));
+      sender.sendMessage(Component.text("/" + label + " start [arena]", NamedTextColor.GRAY));
     }
     if (hasCommandPermission(sender, "stop")) {
       sender.sendMessage(Component.text("/" + label + " stop <arenaId>", NamedTextColor.GRAY));
@@ -272,10 +345,13 @@ public final class SkyBattlePlugin extends JavaPlugin {
       sender.sendMessage(Component.text("/" + label + " setup <arena> <worldName>",
           NamedTextColor.GRAY));
     }
+    if (hasCommandPermission(sender, "spawn")) {
+      sender.sendMessage(Component.text("/" + label + " spawn", NamedTextColor.GRAY));
+    }
   }
 
   private boolean hasCommandPermission(CommandSender sender, String subcommand) {
-    return sender.hasPermission(PERMISSION_PREFIX + subcommand);
+    return sender.hasPermission(ADMIN_PERMISSION) || sender.hasPermission(PERMISSION_PREFIX + subcommand);
   }
 
   private List<String> allowedSubcommands(CommandSender sender) {
@@ -294,7 +370,16 @@ public final class SkyBattlePlugin extends JavaPlugin {
     if (arenas == null) {
       return List.of();
     }
-    return arenas.arenas().stream().map(ArenaHandle::arenaId).sorted().toList();
+    return visibleRunningArenas().stream().map(ArenaHandle::arenaId).sorted().toList();
+  }
+
+  private List<ArenaHandle> visibleRunningArenas() {
+    return arenas.arenas().stream()
+        .filter(handle -> handle.status() == ArenaStatus.CREATED
+            || handle.status() == ArenaStatus.COUNTDOWN
+            || handle.status() == ArenaStatus.RUNNING
+            || handle.status() == ArenaStatus.STOPPING)
+        .toList();
   }
 
   private List<String> completeSetup(String[] args) {
@@ -326,10 +411,52 @@ public final class SkyBattlePlugin extends JavaPlugin {
   }
 
   private void success(CommandSender sender, String message) {
-    sender.sendMessage(Component.text(message, NamedTextColor.GREEN));
+    sender.sendMessage(colored(message, NamedTextColor.GREEN));
   }
 
   private void error(CommandSender sender, String message) {
-    sender.sendMessage(Component.text(message, NamedTextColor.RED));
+    sender.sendMessage(colored(message, NamedTextColor.RED));
+  }
+
+  private Component colored(String message, NamedTextColor fallbackColor) {
+    if (message.indexOf('&') >= 0 || message.indexOf('§') >= 0) {
+      return LegacyComponentSerializer.legacyAmpersand().deserialize(message.replace('§', '&'));
+    }
+    return Component.text(message, fallbackColor);
+  }
+
+  private void registerRuntimeCommand() {
+    CommandMap commandMap = Bukkit.getCommandMap();
+    if (commandMap.getCommand("skb") != null) {
+      return;
+    }
+    commandMap.register("skybattle", new Command("skb", "管理 SkyBattle arena。",
+        "/skb", List.of("skybattle")) {
+      @Override
+      public boolean execute(@NotNull CommandSender sender, @NotNull String label,
+          String @NotNull [] args) {
+        return SkyBattlePlugin.this.onCommand(sender, this, label, args);
+      }
+
+      @Override
+      public @NotNull List<String> tabComplete(@NotNull CommandSender sender,
+          @NotNull String alias, String @NotNull [] args) {
+        List<String> completions =
+            SkyBattlePlugin.this.onTabComplete(sender, this, alias, args);
+        return completions == null ? List.of() : completions;
+      }
+    });
+  }
+
+  private void registerPermissions() {
+    registerPermission(ADMIN_PERMISSION);
+    SUBCOMMANDS.forEach(subcommand -> registerPermission(PERMISSION_PREFIX + subcommand));
+  }
+
+  private void registerPermission(String name) {
+    if (Bukkit.getPluginManager().getPermission(name) != null) {
+      return;
+    }
+    Bukkit.getPluginManager().addPermission(new Permission(name, PermissionDefault.OP));
   }
 }

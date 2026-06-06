@@ -48,8 +48,8 @@ public final class SkyBattleArenaFactory {
 
     ArenaSettings settings = new ArenaSettings(
         global.countdownSeconds(),
-        global.returnWorldName(),
-        global.returnPoint(),
+        global.lobbyWorldName(),
+        global.lobbySpawnPoint(),
         global.saveWorldOnUnload(),
         scoreboard(),
         ArenaBossBarConfig.disabled(),
@@ -60,6 +60,7 @@ public final class SkyBattleArenaFactory {
         SkyBattleItems.beginningItems(),
         lootChests(arena),
         arena.initialBoundaryWall(),
+        arena.verticalBoundary(),
         arena.boundaryStages(),
         ArenaVictoryCondition.OTHER_TEAMS_ALL_FAILED,
         messages());
@@ -83,12 +84,13 @@ public final class SkyBattleArenaFactory {
     List<ArenaLootEntry> entries = table == null ? List.of() : table.entries();
     for (com.talexck.minigamelib.api.arena.ArenaPoint point : points) {
       chests.add(new ArenaLootChest(point, entries, ArenaLootPlacementMode.AUTO,
-          false, false, 0L, 0L, 1, 1, tier.chestDisplayName()));
+          false, false, 0L, 0L, 1, 1, tier.chestDisplayName(), tier.splitStacks(),
+          tier.chestMaterial()));
     }
   }
 
   private ArenaResourcePackConfig resourcePack() {
-    String resourcePath = "resourcepacks/skybattle-lootchests.zip";
+    String resourcePath = "resourcepacks/skybattle-items.zip";
     if (plugin.getResource(resourcePath) == null) {
       return ArenaResourcePackConfig.disabled();
     }
@@ -96,9 +98,9 @@ public final class SkyBattleArenaFactory {
         true,
         plugin,
         resourcePath,
-        false,
+        plugin.getConfig().getBoolean("resource-pack.required", true),
         language.text("resource-pack.prompt"),
-        "");
+        plugin.getConfig().getString("resource-pack.public-url-base", ""));
   }
 
   private ArenaScoreboardConfig scoreboard() {
@@ -115,6 +117,11 @@ public final class SkyBattleArenaFactory {
         language.text("arena.messages.countdown"),
         language.list("arena.messages.started"),
         language.list("arena.messages.ended"),
-        language.list("arena.messages.destroyed"));
+        language.list("arena.messages.destroyed"),
+        language.text("arena.messages.death-generic"),
+        language.text("arena.messages.death-player"),
+        language.text("arena.messages.death-tnt"),
+        language.text("arena.messages.death-creeper"),
+        language.text("arena.messages.death-potion"));
   }
 }

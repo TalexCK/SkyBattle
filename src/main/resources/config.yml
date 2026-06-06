@@ -5,6 +5,26 @@ team-size: 4
 default-initial-border-radius: 120.0
 save-world-on-unload: false
 
+resource-pack:
+  required: true
+  public-url-base: ""
+
+lobby:
+  world: world
+  spawn:
+    x: 0.5
+    y: 80.0
+    z: 0.5
+    yaw: 0.0
+    pitch: 0.0
+  scoreboard:
+    title: "&b&lSkyBattle"
+    lines:
+      - "&7大厅：&f{world}"
+      - "&7在线：&a{online}"
+      - ""
+      - "&e使用 &f/skb start &e开始游戏"
+
 return:
   world: world
   point:

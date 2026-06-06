@@ -19,10 +19,10 @@ public final class SkyBattleItems {
 
   public static List<ArenaItemEntry> beginningItems() {
     return List.of(
-        item("无限方块", Material.WHITE_CONCRETE, 64, ArenaItemMode.INFINITE),
+        ArenaItemFactory.infiniteOffhandBlock("无限方块", Material.WHITE_CONCRETE, 64),
         item("铁胸甲", Material.IRON_CHESTPLATE, 1),
-        item("皮革裤子", Material.LEATHER_LEGGINGS, 1),
-        item("皮革靴子", Material.LEATHER_BOOTS, 1),
+        ArenaItemFactory.teamLeatherLeggings("皮革裤子"),
+        ArenaItemFactory.teamLeatherBoots("皮革靴子"),
         item("石剑", Material.STONE_SWORD, 1),
         item("弓", Material.BOW, 1),
         item("箭", Material.ARROW, 2),
@@ -47,41 +47,48 @@ public final class SkyBattleItems {
 
   public static ArenaItemEntry harmingOrb(String name, int amount, boolean quick) {
     return potion(name, Material.FIRE_CHARGE, amount, PotionEffectType.INSTANT_DAMAGE, 0,
-        Duration.ofSeconds(10), Duration.ofSeconds(1), 3.0);
+        Duration.ofSeconds(10), Duration.ofSeconds(1), 3.0, 1001,
+        "skybattle:timed_orb_of_harming");
   }
 
   public static ArenaItemEntry poisonOrb(String name, int amount, boolean quick) {
     return potion(name, Material.SLIME_BALL, amount, PotionEffectType.POISON, 0,
-        Duration.ofSeconds(10), Duration.ofSeconds(4), 3.0);
+        Duration.ofSeconds(10), Duration.ofSeconds(4), 3.0, 1002,
+        "skybattle:quick_timed_orb_of_poison");
   }
 
   public static ArenaItemEntry cleansingOrb(String name, int amount) {
     return potion(name, Material.SNOWBALL, amount, PotionEffectType.REGENERATION, 0,
-        Duration.ofSeconds(3), Duration.ofSeconds(3), 3.0);
+        Duration.ofSeconds(3), Duration.ofSeconds(3), 3.0, 1003,
+        "skybattle:orb_of_cleansing");
   }
 
   public static ArenaItemEntry levitationSpark(String name, int amount) {
     return selfPotion(name, Material.FEATHER, amount, PotionEffectType.LEVITATION, 0,
-        Duration.ofSeconds(10));
+        Duration.ofSeconds(5), 1004, "skybattle:spark_of_levitation");
   }
 
   public static ArenaItemEntry regenerationSpark(String name, int amount) {
     return selfPotion(name, Material.BLAZE_POWDER, amount, PotionEffectType.REGENERATION, 1,
-        Duration.ofSeconds(4));
+        Duration.ofSeconds(4), 1005, "skybattle:spark_of_regeneration");
   }
 
   private static ArenaItemEntry potion(String name, Material material, int amount,
       PotionEffectType effect, int amplifier, Duration duration, Duration effectDuration,
-      double radius) {
+      double radius, int projectileCustomModelData, String itemModelKey) {
     ArenaPotionItemConfig config =
-        new ArenaPotionItemConfig(radius, duration, effect, amplifier, effectDuration);
-    return new ArenaItemEntry(name, new ItemStack(material), amount, ArenaItemMode.POTION, config);
+        new ArenaPotionItemConfig(radius, duration, effect, amplifier, effectDuration,
+            projectileCustomModelData, itemModelKey);
+    return new ArenaItemEntry(name, new ItemStack(material), amount, ArenaItemMode.POTION, config,
+        false, true);
   }
 
   private static ArenaItemEntry selfPotion(String name, Material material, int amount,
-      PotionEffectType effect, int amplifier, Duration duration) {
+      PotionEffectType effect, int amplifier, Duration duration, int customModelData,
+      String itemModelKey) {
     ArenaPotionItemConfig config =
-        new ArenaPotionItemConfig(1.0, Duration.ZERO, effect, amplifier, duration);
+        new ArenaPotionItemConfig(1.0, Duration.ZERO, effect, amplifier, duration,
+            customModelData, itemModelKey);
     return new ArenaItemEntry(name, new ItemStack(material), amount, ArenaItemMode.SELF_POTION,
         config);
   }

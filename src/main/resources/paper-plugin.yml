@@ -10,38 +10,3 @@ dependencies:
       load: BEFORE
       required: true
       join-classpath: true
-commands:
-  skybattle:
-    description: 管理 SkyBattle arena。
-    usage: /skybattle
-    aliases:
-      - sb
-permissions:
-  skybattle.admin:
-    description: 允许使用所有 SkyBattle 管理命令。
-    default: op
-    children:
-      skybattle.command.reload: true
-      skybattle.command.list: true
-      skybattle.command.start: true
-      skybattle.command.stop: true
-      skybattle.command.destroy: true
-      skybattle.command.setup: true
-  skybattle.command.reload:
-    description: 允许重载 SkyBattle 配置。
-    default: op
-  skybattle.command.list:
-    description: 允许查看 SkyBattle 模板和运行中 arena。
-    default: op
-  skybattle.command.start:
-    description: 允许用模板直接创建并启动 SkyBattle arena。
-    default: op
-  skybattle.command.stop:
-    description: 允许停止 SkyBattle arena。
-    default: op
-  skybattle.command.destroy:
-    description: 允许销毁 SkyBattle arena。
-    default: op
-  skybattle.command.setup:
-    description: 允许进行 SkyBattle arena 游戏内 setup。
-    default: op

@@ -6,7 +6,7 @@
 
     <groupId>com.talexck</groupId>
     <artifactId>skybattle</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>0.1.0</version>
     <packaging>jar</packaging>
 
     <name>SkyBattle</name>
@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.talexck.minigamelib</groupId>
             <artifactId>minigamelib</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>0.1.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -48,13 +48,14 @@
                 <filtering>true</filtering>
                 <excludes>
                     <exclude>resourcepacks/**/*.zip</exclude>
+                    <exclude>resourcepacks/**/*.png</exclude>
                 </excludes>
             </resource>
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>false</filtering>
                 <includes>
-                    <include>resourcepacks/**/*.zip</include>
+                    <include>resourcepacks/skybattle-items.zip</include>
                 </includes>
             </resource>
         </resources>

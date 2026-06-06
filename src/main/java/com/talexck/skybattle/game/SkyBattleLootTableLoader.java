@@ -37,7 +37,10 @@ public final class SkyBattleLootTableLoader {
 
   private void saveDefaultLootFiles() {
     for (SkyBattleLootTier tier : SkyBattleLootTier.values()) {
-      plugin.saveResource("loot/" + tier.fileName() + ".yml", false);
+      String path = "loot/" + tier.fileName() + ".yml";
+      if (!new File(plugin.getDataFolder(), path).isFile()) {
+        plugin.saveResource(path, false);
+      }
     }
   }
 
@@ -115,7 +118,15 @@ public final class SkyBattleLootTableLoader {
             integerValue(entry.getValue(), 1)));
       }
     }
-    return ArenaItemFactory.item(name, material, amount, mode, enchantments, material == Material.TNT);
+    return ArenaItemFactory.item(name, material, amount, mode, enchantments, material == Material.TNT,
+        splitInLoot(material));
+  }
+
+  private boolean splitInLoot(Material material) {
+    return switch (material) {
+      case TNT, ENDER_PEARL, CREEPER_SPAWN_EGG -> true;
+      default -> material.getMaxStackSize() == 1;
+    };
   }
 
   private String string(Map<?, ?> map, String key, String fallback) {

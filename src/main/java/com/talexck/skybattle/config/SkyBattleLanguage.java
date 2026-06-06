@@ -22,8 +22,11 @@ public final class SkyBattleLanguage {
     plugin.saveDefaultConfig();
     String language = plugin.getConfig().getString("language", DEFAULT_LANGUAGE);
     String resourcePath = "lang/" + language + ".yml";
-    plugin.saveResource(resourcePath, false);
-    this.messages = YamlConfiguration.loadConfiguration(new File(plugin.getDataFolder(), resourcePath));
+    File file = new File(plugin.getDataFolder(), resourcePath);
+    if (!file.isFile()) {
+      plugin.saveResource(resourcePath, false);
+    }
+    this.messages = YamlConfiguration.loadConfiguration(file);
   }
 
   public String text(String key) {
