@@ -17,7 +17,6 @@ import com.talexck.minigamelib.api.arena.ArenaVictoryCondition;
 import com.talexck.skybattle.config.SkyBattleArenaConfig;
 import com.talexck.skybattle.config.SkyBattleGlobalConfig;
 import com.talexck.skybattle.config.SkyBattleLanguage;
-import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,12 +26,10 @@ public final class SkyBattleArenaFactory {
 
   private final SkyBattleGlobalConfig global;
   private final Map<SkyBattleLootTier, SkyBattleLootTable> lootTables;
-  private final JavaPlugin plugin;
   private final SkyBattleLanguage language;
 
-  public SkyBattleArenaFactory(JavaPlugin plugin, SkyBattleLanguage language, SkyBattleGlobalConfig global,
+  public SkyBattleArenaFactory(SkyBattleLanguage language, SkyBattleGlobalConfig global,
       Map<SkyBattleLootTier, SkyBattleLootTable> lootTables) {
-    this.plugin = plugin;
     this.language = language;
     this.global = global;
     this.lootTables = lootTables;
@@ -48,6 +45,7 @@ public final class SkyBattleArenaFactory {
 
     ArenaSettings settings = new ArenaSettings(
         global.countdownSeconds(),
+        global.teamSize(),
         global.lobbyWorldName(),
         global.lobbySpawnPoint(),
         global.saveWorldOnUnload(),
@@ -90,17 +88,7 @@ public final class SkyBattleArenaFactory {
   }
 
   private ArenaResourcePackConfig resourcePack() {
-    String resourcePath = "resourcepacks/skybattle-items.zip";
-    if (plugin.getResource(resourcePath) == null) {
-      return ArenaResourcePackConfig.disabled();
-    }
-    return new ArenaResourcePackConfig(
-        true,
-        plugin,
-        resourcePath,
-        plugin.getConfig().getBoolean("resource-pack.required", true),
-        language.text("resource-pack.prompt"),
-        plugin.getConfig().getString("resource-pack.public-url-base", ""));
+    return ArenaResourcePackConfig.disabled();
   }
 
   private ArenaScoreboardConfig scoreboard() {

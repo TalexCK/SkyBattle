@@ -146,7 +146,12 @@ public final class SkyBattleLootTableLoader {
     if (value instanceof Number number) {
       return number.intValue();
     }
-    return Integer.parseInt(String.valueOf(value));
+    try {
+      return Integer.parseInt(String.valueOf(value));
+    } catch (NumberFormatException exception) {
+      throw new com.talexck.skybattle.config.SkyBattleConfigException(
+          "战利品配置需要整数，实际为: " + value, exception);
+    }
   }
 
   private double number(Map<?, ?> map, String key, double fallback) {
@@ -157,6 +162,11 @@ public final class SkyBattleLootTableLoader {
     if (value instanceof Number number) {
       return number.doubleValue();
     }
-    return Double.parseDouble(String.valueOf(value));
+    try {
+      return Double.parseDouble(String.valueOf(value));
+    } catch (NumberFormatException exception) {
+      throw new com.talexck.skybattle.config.SkyBattleConfigException(
+          "战利品配置项 " + key + " 需要数字，实际为: " + value, exception);
+    }
   }
 }

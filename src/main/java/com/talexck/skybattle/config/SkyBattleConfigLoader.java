@@ -259,7 +259,12 @@ public final class SkyBattleConfigLoader {
     if (value instanceof Number number) {
       return number.doubleValue();
     }
-    return Double.parseDouble(String.valueOf(value));
+    try {
+      return Double.parseDouble(String.valueOf(value));
+    } catch (NumberFormatException exception) {
+      throw new SkyBattleConfigException(
+          "配置项 " + key + " 需要数字，实际为: " + value, exception);
+    }
   }
 
   private long longNumber(java.util.Map<?, ?> map, String key, long fallback) {
@@ -270,6 +275,11 @@ public final class SkyBattleConfigLoader {
     if (value instanceof Number number) {
       return number.longValue();
     }
-    return Long.parseLong(String.valueOf(value));
+    try {
+      return Long.parseLong(String.valueOf(value));
+    } catch (NumberFormatException exception) {
+      throw new SkyBattleConfigException(
+          "配置项 " + key + " 需要整数，实际为: " + value, exception);
+    }
   }
 }

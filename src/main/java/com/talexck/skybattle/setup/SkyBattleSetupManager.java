@@ -42,7 +42,15 @@ public final class SkyBattleSetupManager implements Listener {
   private final JavaPlugin plugin;
   private final SetupService setup;
   private final SkyBattleLanguage language;
-  private final Map<UUID, SetupSession> sessions = new java.util.HashMap<>();
+  private final Map<UUID, SetupSession> sessions = new java.util.concurrent.ConcurrentHashMap<>();
+  private final java.util.Set<UUID> pendingSetups =
+      java.util.concurrent.ConcurrentHashMap.newKeySet();
+  private final java.util.concurrent.ExecutorService ioExecutor =
+      java.util.concurrent.Executors.newSingleThreadExecutor(task -> {
+        Thread thread = new Thread(task, "skybattle-setup-io");
+        thread.setDaemon(true);
+        return thread;
+      });
 
   public SkyBattleSetupManager(JavaPlugin plugin, SetupService setup, SkyBattleLanguage language) {
     this.plugin = plugin;
@@ -52,7 +60,8 @@ public final class SkyBattleSetupManager implements Listener {
   }
 
   public void startSetup(Player player, String arenaId, String templateWorldName) {
-    if (sessions.containsKey(player.getUniqueId())) {
+    UUID playerId = player.getUniqueId();
+    if (sessions.containsKey(playerId) || pendingSetups.contains(playerId)) {
       player.sendMessage(Component.text(language.text("setup.already-running")));
       return;
     }
@@ -67,37 +76,85 @@ public final class SkyBattleSetupManager implements Listener {
     String setupWorldName =
         "skybattle_setup_" + arenaId + "_" + UUID.randomUUID().toString().substring(0, 8);
     File target = new File(plugin.getServer().getWorldContainer(), setupWorldName);
-    try {
-      copyWorld(source.toPath(), target.toPath());
-    } catch (IOException exception) {
-      player.sendMessage(Component
-          .text(language.text("setup.copy-world-failed", "{error}", exception.getMessage())));
+    // Reserve the slot synchronously so a second /skb setup can't race the async copy.
+    pendingSetups.add(playerId);
+
+    // World copy is potentially large recursive I/O: do it off the main thread, then resume world
+    // creation + teleport back on the main thread.
+    ioExecutor.execute(() -> {
+      try {
+        copyWorld(source.toPath(), target.toPath());
+      } catch (IOException exception) {
+        pendingSetups.remove(playerId);
+        runOnMain(() -> {
+          Player online = Bukkit.getPlayer(playerId);
+          if (online != null) {
+            online.sendMessage(Component.text(
+                language.text("setup.copy-world-failed", "{error}", exception.getMessage())));
+          }
+        });
+        return;
+      }
+      runOnMain(() -> finishStartSetup(playerId, arenaId, templateWorldName, setupWorldName,
+          target.toPath()));
+    });
+  }
+
+  private void finishStartSetup(UUID playerId, String arenaId, String templateWorldName,
+      String setupWorldName, Path target) {
+    if (!pendingSetups.remove(playerId)) {
+      // Reservation was cancelled (e.g. plugin shutdown) while copying; drop the copied directory.
+      deleteDirectoryAsync(target);
       return;
     }
-
+    Player player = Bukkit.getPlayer(playerId);
+    if (player == null) {
+      // Player left during the copy: clean the copied directory.
+      deleteDirectoryAsync(target);
+      return;
+    }
     World world = Bukkit.createWorld(new WorldCreator(setupWorldName));
     if (world == null) {
-      deleteDirectoryQuietly(target.toPath());
+      deleteDirectoryAsync(target);
       player.sendMessage(Component.text(language.text("setup.load-world-failed")));
       return;
     }
 
     Location returnLocation = player.getLocation();
     player.teleport(world.getSpawnLocation());
-    SetupSession session = new SetupSession(player.getUniqueId(), arenaId, templateWorldName,
-        setupWorldName, target.toPath(), returnLocation);
-    sessions.put(player.getUniqueId(), session);
+    SetupSession session = new SetupSession(playerId, arenaId, templateWorldName,
+        setupWorldName, target, returnLocation);
+    sessions.put(playerId, session);
     setup.startBlockMarker(player, mark -> handleMark(session, mark.block()));
     prompt(player, session);
   }
 
+  private void runOnMain(Runnable runnable) {
+    if (!plugin.isEnabled()) {
+      return;
+    }
+    Bukkit.getScheduler().runTask(plugin, runnable);
+  }
+
+
   public void shutdown() {
     HandlerList.unregisterAll(this);
+    pendingSetups.clear();
     for (SetupSession session : List.copyOf(sessions.values())) {
       Player player = Bukkit.getPlayer(session.playerId());
       cleanup(session, player, false);
     }
     sessions.clear();
+    ioExecutor.shutdown();
+  }
+
+  @EventHandler
+  public void onQuit(PlayerQuitEvent event) {
+    pendingSetups.remove(event.getPlayer().getUniqueId());
+    SetupSession session = sessions.remove(event.getPlayer().getUniqueId());
+    if (session != null) {
+      cleanup(session, event.getPlayer(), false);
+    }
   }
 
   @EventHandler
@@ -109,14 +166,6 @@ public final class SkyBattleSetupManager implements Listener {
     event.setCancelled(true);
     String message = PlainTextComponentSerializer.plainText().serialize(event.message()).trim();
     Bukkit.getScheduler().runTask(plugin, () -> handleChat(event.getPlayer(), session, message));
-  }
-
-  @EventHandler
-  public void onQuit(PlayerQuitEvent event) {
-    SetupSession session = sessions.remove(event.getPlayer().getUniqueId());
-    if (session != null) {
-      cleanup(session, event.getPlayer(), false);
-    }
   }
 
   private void handleChat(Player player, SetupSession session, String message) {
@@ -387,7 +436,16 @@ public final class SkyBattleSetupManager implements Listener {
     if (world != null) {
       Bukkit.unloadWorld(world, false);
     }
-    deleteDirectoryQuietly(session.setupWorldPath());
+    deleteDirectoryAsync(session.setupWorldPath());
+  }
+
+  /** Deletes a world directory off the main thread to avoid blocking the server on large worlds. */
+  private void deleteDirectoryAsync(Path path) {
+    if (ioExecutor.isShutdown()) {
+      deleteDirectoryQuietly(path);
+      return;
+    }
+    ioExecutor.execute(() -> deleteDirectoryQuietly(path));
   }
 
   private void copyWorld(Path source, Path target) throws IOException {

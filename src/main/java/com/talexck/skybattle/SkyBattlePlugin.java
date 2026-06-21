@@ -35,9 +35,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
@@ -55,7 +53,6 @@ public final class SkyBattlePlugin extends JavaPlugin {
   private SkyBattleSetupManager setupManager;
   private SkyBattleLanguage language;
   private SkyBattleLoadedConfig loadedConfig;
-  private final Map<String, String> runningArenaTemplates = new HashMap<>();
 
   @Override
   public void onEnable() {
@@ -145,7 +142,7 @@ public final class SkyBattlePlugin extends JavaPlugin {
     SkyBattleConfigLoader configLoader = new SkyBattleConfigLoader(this);
     SkyBattleLoadedConfig config = configLoader.load();
     SkyBattleArenaFactory factory =
-        new SkyBattleArenaFactory(this, language, config.global(), new SkyBattleLootTableLoader(this).load());
+        new SkyBattleArenaFactory(language, config.global(), new SkyBattleLootTableLoader(this).load());
 
     for (SkyBattleArenaConfig arena : config.arenas()) {
       arenas.unregisterTemplate(arena.id());
@@ -212,7 +209,6 @@ public final class SkyBattlePlugin extends JavaPlugin {
     ArenaCreateRequest request = new ArenaCreateRequest(arenaId, templateId, "skybattle_" + arenaId,
         null, null, players, null, allowSinglePlayer);
     arenas.createArena(request).thenAccept(handle -> {
-      runningArenaTemplates.put(handle.arenaId(), templateId);
       arenas.startArena(handle.arenaId()).thenRun(
           () -> success(sender, language.text("command.start-success", "{arenaId}",
               handle.arenaId(), "{players}", players.size()))).exceptionally(exception -> {
@@ -274,7 +270,6 @@ public final class SkyBattlePlugin extends JavaPlugin {
       return;
     }
     arenas.destroyArena(args[1]).thenRun(() -> {
-      runningArenaTemplates.remove(args[1]);
       success(sender, language.text("command.destroy-success", "{arenaId}", args[1]));
     }).exceptionally(exception -> {
       error(sender, language.text("command.destroy-failed", "{error}", exception.getMessage()));
