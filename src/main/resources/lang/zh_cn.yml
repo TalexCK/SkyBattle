@@ -28,15 +28,25 @@ command:
   spawn-player-only: "&cspawn 只能由玩家执行。"
   spawn-success: "&a大厅出生点已设置为你当前位置。"
   help-header: "&6SkyBattle 命令："
-resource-pack:
-  prompt: "加载 SkyBattle 材质包以显示药水球和火花。"
 arena:
-  scoreboard-title: "&b&lSky Battle"
+  scoreboard-title: "&b&l✦ SKY BATTLE ✦"
+  bossbar: "&b&lSKY BATTLE &8» &f{aliveTeams} &7支队伍存活 &8· &f{players} &7名玩家"
+  title:
+    teleport: "&b&lSKY BATTLE"
+    teleport-sub: "&7准备战斗……"
+    started: "&a&l战斗开始"
+    started-sub: "&7活到最后！"
+    stopped: "&6&l游戏结束"
+    stopped-sub: "&7感谢游玩"
   scoreboard-lines:
-    - "&7玩家：&b{players}"
-    - "&7存活队伍：&a{aliveTeams}"
-    - "&7队伍：&e{team}"
-    - "&7击杀：&c{kills}"
+    - "&8&m                    "
+    - "&7存活队伍 &8» &a{aliveTeams}"
+    - "&7在线玩家 &8» &b{players}"
+    - " "
+    - "&7我的队伍 &8» &e{team}"
+    - "&7击杀 &8» &c{kills}  &7死亡 &8» &f{deaths}"
+    - "&8&m                    "
+    - "&e&lplay.skybattle"
   messages:
     created:
       - "&aSky Battle arena 已创建。"
@@ -44,16 +54,17 @@ arena:
       - "&e正在传送到 &bSky Battle &earena。"
     countdown: "&bSky Battle &7将在 &e%seconds% &7秒后开始。"
     started:
-      - "&a&lSky Battle 开始！"
+      - "&a&l✦ Sky Battle 开始！ ✦"
+      - "&7击败所有敌对队伍，活到最后！"
     ended:
       - "&cSky Battle 已结束。"
     destroyed:
       - "&7Sky Battle arena 已销毁。"
-    death-generic: "{victim} &7被击败了。"
-    death-player: "{victim} &7被 {killer} &7击败了。"
-    death-tnt: "{victim} &7被 {killer} &7点燃的 &cTNT &7炸飞了。"
-    death-creeper: "{victim} &7被 {killer} &7释放的 &a苦力怕 &7击败了。"
-    death-potion: "{victim} &7被 {killer} &7的 &6{source} &7击败了。"
+    death-generic: "&8[&c☠&8] {victim} &7被击败了。"
+    death-player: "&8[&c☠&8] {victim} &7被 {killer} &7击败了。"
+    death-tnt: "&8[&c☠&8] {victim} &7被 {killer} &7点燃的 &cTNT &7炸飞了。"
+    death-creeper: "&8[&c☠&8] {victim} &7被 {killer} &7释放的 &a苦力怕 &7击败了。"
+    death-potion: "&8[&c☠&8] {victim} &7被 {killer} &7的 &6{source} &7击败了。"
 setup:
   already-running: "你已经在 setup 流程中。输入 cancel 可取消。"
   template-world-not-found: "未找到模板世界目录：arena/{worldName}"
