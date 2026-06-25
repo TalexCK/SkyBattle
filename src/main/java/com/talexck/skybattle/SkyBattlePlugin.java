@@ -10,6 +10,9 @@ import com.talexck.minigamelib.api.arena.ArenaStopReason;
 import com.talexck.minigamelib.api.lobby.LobbyService;
 import com.talexck.minigamelib.api.lobby.LobbySettings;
 import com.talexck.minigamelib.api.setup.SetupService;
+import com.talexck.minigamelib.api.stats.LeaderboardType;
+import com.talexck.minigamelib.api.stats.StatsBoard;
+import com.talexck.minigamelib.api.stats.StatsService;
 import com.talexck.skybattle.config.SkyBattleArenaConfig;
 import com.talexck.skybattle.config.SkyBattleConfigException;
 import com.talexck.skybattle.config.SkyBattleConfigLoader;
@@ -45,11 +48,12 @@ public final class SkyBattlePlugin extends JavaPlugin {
   private static final String ADMIN_PERMISSION = "skybattle.admin";
   private static final String PERMISSION_PREFIX = "skybattle.command.";
   private static final List<String> SUBCOMMANDS =
-      List.of("reload", "list", "start", "stop", "destroy", "setup", "spawn");
+      List.of("reload", "list", "start", "stop", "destroy", "setup", "spawn", "board");
 
   private ArenaService arenas;
   private SetupService setup;
   private LobbyService lobby;
+  private StatsService stats;
   private SkyBattleSetupManager setupManager;
   private SkyBattleLanguage language;
   private SkyBattleLoadedConfig loadedConfig;
@@ -68,6 +72,7 @@ public final class SkyBattlePlugin extends JavaPlugin {
     this.arenas = library.arenas();
     this.setup = library.setup();
     this.lobby = library.lobby();
+    this.stats = library.stats();
     this.setupManager = new SkyBattleSetupManager(this, setup, language);
     reloadSkyBattle();
     getLogger().info(language.text("plugin.enabled"));
@@ -108,6 +113,7 @@ public final class SkyBattlePlugin extends JavaPlugin {
       case "destroy" -> handleDestroy(sender, args);
       case "setup" -> handleSetup(sender, args);
       case "spawn" -> handleSpawn(sender);
+      case "board" -> handleBoard(sender, args);
       default -> sendHelp(sender, label);
     }
     return true;
@@ -134,6 +140,7 @@ public final class SkyBattlePlugin extends JavaPlugin {
       case "stop", "destroy" -> args.length == 2 ? filterPrefix(runningArenaIds(), args[1])
           : List.of();
       case "setup" -> completeSetup(args);
+      case "board" -> completeBoard(args);
       default -> List.of();
     };
   }
@@ -143,6 +150,10 @@ public final class SkyBattlePlugin extends JavaPlugin {
     SkyBattleLoadedConfig config = configLoader.load();
     SkyBattleArenaFactory factory =
         new SkyBattleArenaFactory(language, config.global(), new SkyBattleLootTableLoader(this).load());
+
+    if (stats != null) {
+      stats.configure(config.global().statsSettings());
+    }
 
     for (SkyBattleArenaConfig arena : config.arenas()) {
       arenas.unregisterTemplate(arena.id());
@@ -311,6 +322,91 @@ public final class SkyBattlePlugin extends JavaPlugin {
     success(sender, language.text("command.spawn-success"));
   }
 
+  private void handleBoard(CommandSender sender, String[] args) {
+    if (args.length < 3) {
+      error(sender, language.text("command.usage-board"));
+      return;
+    }
+    LeaderboardType type = LeaderboardType.fromKey(args[1]).orElse(null);
+    if (type == null) {
+      error(sender, language.text("command.board-type-invalid", "{type}", args[1]));
+      return;
+    }
+    if (stats == null || !stats.isAvailable()) {
+      error(sender, language.text("command.board-stats-unavailable"));
+      return;
+    }
+    String action = args[2].toLowerCase(Locale.ROOT);
+    switch (action) {
+      case "create" -> handleBoardCreate(sender, args, type);
+      case "list" -> handleBoardList(sender, type);
+      case "delete" -> handleBoardDelete(sender, args, type);
+      default -> error(sender, language.text("command.usage-board"));
+    }
+  }
+
+  private void handleBoardCreate(CommandSender sender, String[] args, LeaderboardType type) {
+    if (!(sender instanceof Player player)) {
+      error(sender, language.text("command.board-player-only"));
+      return;
+    }
+    if (args.length < 4) {
+      error(sender, language.text("command.usage-board"));
+      return;
+    }
+    String id = args[3];
+    stats.createBoard(type, id, player.getLocation()).thenAccept(board -> runSync(() ->
+        success(sender, language.text("command.board-create-success", "{type}",
+            type.displayName(), "{id}", board.id())))).exceptionally(exception -> {
+      runSync(() -> error(sender, language.text("command.board-create-failed", "{error}",
+          rootMessage(exception))));
+      return null;
+    });
+  }
+
+  private void handleBoardList(CommandSender sender, LeaderboardType type) {
+    stats.boards(type).thenAccept(boards -> runSync(() -> {
+      success(sender, language.text("command.board-list-header", "{type}", type.displayName()));
+      if (boards.isEmpty()) {
+        sender.sendMessage(colored(language.text("command.board-list-empty"),
+            NamedTextColor.GRAY));
+        return;
+      }
+      for (StatsBoard board : boards) {
+        sender.sendMessage(colored(language.text("command.board-list-line",
+            "{id}", board.id(),
+            "{world}", board.worldName(),
+            "{x}", formatCoordinate(board.x()),
+            "{y}", formatCoordinate(board.y()),
+            "{z}", formatCoordinate(board.z())), NamedTextColor.GRAY));
+      }
+    })).exceptionally(exception -> {
+      runSync(() -> error(sender, language.text("command.board-list-failed", "{error}",
+          rootMessage(exception))));
+      return null;
+    });
+  }
+
+  private void handleBoardDelete(CommandSender sender, String[] args, LeaderboardType type) {
+    if (args.length < 4) {
+      error(sender, language.text("command.usage-board"));
+      return;
+    }
+    String id = args[3];
+    stats.deleteBoard(type, id).thenAccept(deleted -> runSync(() -> {
+      if (deleted) {
+        success(sender, language.text("command.board-delete-success", "{type}",
+            type.displayName(), "{id}", id));
+      } else {
+        error(sender, language.text("command.board-delete-missing", "{id}", id));
+      }
+    })).exceptionally(exception -> {
+      runSync(() -> error(sender, language.text("command.board-delete-failed", "{error}",
+          rootMessage(exception))));
+      return null;
+    });
+  }
+
   private void setConfigPoint(String path, ArenaPoint point) {
     getConfig().set(path + ".x", point.x());
     getConfig().set(path + ".y", point.y());
@@ -342,6 +438,11 @@ public final class SkyBattlePlugin extends JavaPlugin {
     }
     if (hasCommandPermission(sender, "spawn")) {
       sender.sendMessage(Component.text("/" + label + " spawn", NamedTextColor.GRAY));
+    }
+    if (hasCommandPermission(sender, "board")) {
+      sender.sendMessage(Component.text("/" + label
+          + " board <kills|wins|experience> <create|list|delete> [id]",
+          NamedTextColor.GRAY));
     }
   }
 
@@ -387,6 +488,16 @@ public final class SkyBattlePlugin extends JavaPlugin {
     return List.of();
   }
 
+  private List<String> completeBoard(String[] args) {
+    if (args.length == 2) {
+      return filterPrefix(List.of("kills", "wins", "experience"), args[1]);
+    }
+    if (args.length == 3) {
+      return filterPrefix(List.of("create", "list", "delete"), args[2]);
+    }
+    return List.of();
+  }
+
   private List<String> setupWorldNames() {
     java.io.File folder = new java.io.File(getServer().getWorldContainer(), "arena");
     java.io.File[] files = folder.listFiles(java.io.File::isDirectory);
@@ -418,6 +529,22 @@ public final class SkyBattlePlugin extends JavaPlugin {
       return LegacyComponentSerializer.legacyAmpersand().deserialize(message.replace('§', '&'));
     }
     return Component.text(message, fallbackColor);
+  }
+
+  private void runSync(Runnable task) {
+    Bukkit.getScheduler().runTask(this, task);
+  }
+
+  private String formatCoordinate(double value) {
+    return String.format(Locale.ROOT, "%.1f", value);
+  }
+
+  private String rootMessage(Throwable throwable) {
+    Throwable current = throwable;
+    while (current.getCause() != null) {
+      current = current.getCause();
+    }
+    return current.getMessage();
   }
 
   private void registerRuntimeCommand() {

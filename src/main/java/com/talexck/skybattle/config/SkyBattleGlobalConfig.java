@@ -1,6 +1,7 @@
 package com.talexck.skybattle.config;
 
 import com.talexck.minigamelib.api.arena.ArenaPoint;
+import com.talexck.minigamelib.api.stats.StatsSettings;
 
 import java.util.List;
 
@@ -15,7 +16,8 @@ public record SkyBattleGlobalConfig(
     int maxPlayers,
     int teamSize,
     double defaultInitialBorderRadius,
-    boolean saveWorldOnUnload) {
+    boolean saveWorldOnUnload,
+    StatsSettings statsSettings) {
 
   public SkyBattleGlobalConfig {
     lobbyScoreboardTitle = lobbyScoreboardTitle == null ? "" : lobbyScoreboardTitle;

@@ -134,13 +134,14 @@ src/main/resources/resourcepacks/
 src/main/resources/resourcepack-src/
 ```
 
-构建插件前，请在本地制作并放入：
+分发资源包前，请在外部资源包目录制作：
 
 ```text
 src/main/resources/resourcepacks/skybattle-items.zip
 ```
 
-如果 jar 内没有这个 zip，SkyBattle 仍可启动，但药水球和火花不会显示为自定义外观。
+这个 zip 不再打进插件 jar。玩家只有通过服务器原生配置、代理/CDN 或其他外部方式
+加载该资源包后，药水球和火花才会显示为自定义外观。
 
 `pack.mcmeta` 应使用：
 
@@ -153,16 +154,8 @@ src/main/resources/resourcepacks/skybattle-items.zip
 }
 ```
 
-插件会通过 MinigameLib 在玩家进服时下发资源包。下发配置位于 `config.yml`：
-
-```yaml
-resource-pack:
-  required: true
-  public-url-base: ""
-```
-
-如果服务器面向公网玩家，建议把 `public-url-base` 设置成公网可访问的 URL 前缀。
-留空时 MinigameLib 会使用内置 HTTP 服务。
+SkyBattle 不再通过 MinigameLib 自动下发资源包。请使用服务器原生
+`server-resource-pack` 配置、代理/CDN 或其他外部方式分发资源包。
 
 ### Loot Chest 方块
 

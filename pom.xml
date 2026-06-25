@@ -51,13 +51,6 @@
                     <exclude>resourcepacks/**/*.png</exclude>
                 </excludes>
             </resource>
-            <resource>
-                <directory>src/main/resources</directory>
-                <filtering>false</filtering>
-                <includes>
-                    <include>resourcepacks/skybattle-items.zip</include>
-                </includes>
-            </resource>
         </resources>
         <plugins>
             <plugin>
@@ -66,6 +59,16 @@
                 <version>3.13.0</version>
                 <configuration>
                     <release>${maven.compiler.release}</release>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <excludes>
+                        <exclude>resourcepacks/**</exclude>
+                    </excludes>
                 </configuration>
             </plugin>
         </plugins>

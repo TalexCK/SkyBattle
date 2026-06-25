@@ -6,6 +6,9 @@ import com.talexck.minigamelib.api.arena.ArenaPoint;
 import com.talexck.minigamelib.api.arena.ArenaTeamColor;
 import com.talexck.minigamelib.api.arena.ArenaTeamSpawn;
 import com.talexck.minigamelib.api.arena.ArenaVerticalBoundary;
+import com.talexck.minigamelib.api.stats.StatsSettings;
+import com.talexck.minigamelib.api.stats.StatsStorageConfig;
+import com.talexck.minigamelib.api.stats.StatsStorageType;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -61,7 +64,36 @@ public final class SkyBattleConfigLoader {
         config.getInt("max-players", 32),
         config.getInt("team-size", 4),
         config.getDouble("default-initial-border-radius", 120.0),
-        config.getBoolean("save-world-on-unload", false));
+        config.getBoolean("save-world-on-unload", false),
+        statsSettings(config.getConfigurationSection("stats")));
+  }
+
+  private StatsSettings statsSettings(ConfigurationSection section) {
+    ConfigurationSection storageSection =
+        section == null ? null : section.getConfigurationSection("storage");
+    String typeKey = storageSection == null ? "sqlite" : storageSection.getString("type", "sqlite");
+    StatsStorageType type = StatsStorageType.fromKey(typeKey).orElse(StatsStorageType.SQLITE);
+    String sqliteFile = storageSection == null
+        ? "stats.db"
+        : storageSection.getString("sqlite-file", "stats.db");
+    if (type == StatsStorageType.SQLITE) {
+      File file = new File(sqliteFile);
+      if (!file.isAbsolute()) {
+        file = new File(plugin.getDataFolder(), sqliteFile);
+      }
+      sqliteFile = file.getAbsolutePath();
+    }
+    String jdbcUrl = storageSection == null ? "" : storageSection.getString("jdbc-url", "");
+    String username = storageSection == null ? "" : storageSection.getString("username", "");
+    String password = storageSection == null ? "" : storageSection.getString("password", "");
+    ConfigurationSection rewards =
+        section == null ? null : section.getConfigurationSection("rewards");
+    int killExperience = rewards == null ? 10 : rewards.getInt("kill-experience", 10);
+    int winExperience = rewards == null ? 50 : rewards.getInt("win-experience", 50);
+    return new StatsSettings(
+        new StatsStorageConfig(type, sqliteFile, jdbcUrl, username, password),
+        killExperience,
+        winExperience);
   }
 
   private List<SkyBattleArenaConfig> loadArenas(File dataFolder, SkyBattleGlobalConfig global) {

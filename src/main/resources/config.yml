@@ -5,10 +5,6 @@ team-size: 4
 default-initial-border-radius: 120.0
 save-world-on-unload: false
 
-resource-pack:
-  required: true
-  public-url-base: ""
-
 lobby:
   world: world
   spawn:
@@ -18,12 +14,18 @@ lobby:
     yaw: 0.0
     pitch: 0.0
   scoreboard:
-    title: "&b&lSkyBattle"
+    title: "&b&l✦ SKYBATTLE ✦"
     lines:
-      - "&7大厅：&f{world}"
-      - "&7在线：&a{online}"
+      - "&8&m                    "
+      - "&f玩家 &8» &b{player}"
       - ""
-      - "&e使用 &f/skb start &e开始游戏"
+      - "&c击杀 &8» &f{kills}"
+      - "&6获胜 &8» &f{wins}"
+      - "&b积分 &8» &f{experience}"
+      - ""
+      - "&e开局 &8» &f/skb start"
+      - "&e榜单 &8» &f/skb board"
+      - "&8&m                    "
 
 return:
   world: world
@@ -33,3 +35,15 @@ return:
     z: 0.5
     yaw: 0.0
     pitch: 0.0
+
+stats:
+  storage:
+    # sqlite 为默认本地存储；mysql/postgresql 请填写 jdbc-url、username、password。
+    type: sqlite
+    sqlite-file: stats.db
+    jdbc-url: ""
+    username: ""
+    password: ""
+  rewards:
+    kill-experience: 10
+    win-experience: 50

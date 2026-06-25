@@ -50,8 +50,8 @@ public final class SkyBattleArenaFactory {
     ArenaSettings settings = new ArenaSettings(
         global.countdownSeconds(),
         global.teamSize(),
-        global.lobbyWorldName(),
-        global.lobbySpawnPoint(),
+        global.returnWorldName(),
+        global.returnPoint(),
         global.saveWorldOnUnload(),
         scoreboard(),
         bossBar(),

@@ -138,14 +138,15 @@ src/main/resources/resourcepacks/
 src/main/resources/resourcepack-src/
 ```
 
-Before packaging the plugin, create this file locally:
+Before distributing the resource pack, create it in the external pack directory:
 
 ```text
 src/main/resources/resourcepacks/skybattle-items.zip
 ```
 
-If the jar does not contain this zip, SkyBattle can still start, but custom
-orbs and sparks will not render.
+This zip is no longer packaged into the plugin jar. Custom orbs and sparks only
+render after players load the pack through native server configuration, a
+proxy/CDN, or another external delivery method.
 
 `pack.mcmeta` should use:
 
@@ -158,17 +159,9 @@ orbs and sparks will not render.
 }
 ```
 
-The plugin sends the resource pack on player join through MinigameLib. Runtime
-delivery can be configured in `config.yml`:
-
-```yaml
-resource-pack:
-  required: true
-  public-url-base: ""
-```
-
-If the server is public, set `public-url-base` to a publicly reachable URL
-prefix. If it is empty, MinigameLib uses its built-in HTTP server.
+SkyBattle no longer sends the resource pack through MinigameLib. Use the
+server's native `server-resource-pack` configuration, a proxy/CDN, or another
+external delivery method to distribute the pack.
 
 ### Loot Chest Blocks
 
