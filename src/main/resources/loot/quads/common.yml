@@ -1,0 +1,46 @@
+# Sky Battle quads - common chest
+# Each chest picks `rolls` different variants by weight. A variant can hold several items.
+# Item keys: material | alias (special items), amount, name, lore, enchantments (minecraft keys).
+# Aliases: timed_orb_of_harming, orb_of_poison, orb_of_slowness, orb_of_cleansing,
+#          spark_of_levitation, spark_of_regeneration, spark_of_speed
+rolls: 2
+variants:
+- weight: 3
+  items:
+  - material: ARROW
+    amount: 4
+- weight: 3
+  items:
+  - material: COOKED_BEEF
+    amount: 4
+- weight: 2
+  items:
+  - material: SNOWBALL
+    amount: 8
+- weight: 2
+  items:
+  - material: COBWEB
+    amount: 2
+- weight: 2
+  items:
+  - material: IRON_BOOTS
+- weight: 2
+  items:
+  - material: IRON_HELMET
+- weight: 1.5
+  items:
+  - material: TNT
+- weight: 1.5
+  items:
+  - alias: orb_of_cleansing
+- weight: 1
+  items:
+  - alias: spark_of_levitation
+- weight: 1
+  items:
+  - material: SCAFFOLDING
+    amount: 8
+- weight: 1
+  items:
+  - material: WIND_CHARGE
+    amount: 2

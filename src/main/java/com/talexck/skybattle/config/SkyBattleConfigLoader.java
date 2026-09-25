@@ -19,22 +19,30 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.EnumMap;
 import java.util.Locale;
+import java.util.Map;
+import com.talexck.minigamelib.api.arena.ArenaItemEntry;
+import com.talexck.skybattle.game.SkyBattleItems;
+import com.talexck.skybattle.game.SkyBattleMode;
 
 public final class SkyBattleConfigLoader {
 
   private final JavaPlugin plugin;
+  private final SkyBattleItems items;
 
-  public SkyBattleConfigLoader(JavaPlugin plugin) {
+  public SkyBattleConfigLoader(JavaPlugin plugin, SkyBattleItems items) {
     this.plugin = plugin;
+    this.items = items;
   }
 
   public SkyBattleLoadedConfig load() {
     plugin.saveDefaultConfig();
-
+    plugin.reloadConfig();
     SkyBattleGlobalConfig global = loadGlobal(plugin.getConfig());
-    List<SkyBattleArenaConfig> arenas = loadArenas(plugin.getDataFolder(), global);
-    return new SkyBattleLoadedConfig(global, arenas);
+    List<String> problems = new ArrayList<>();
+    List<SkyBattleArenaConfig> arenas = loadArenas(plugin.getDataFolder(), global, problems);
+    return new SkyBattleLoadedConfig(global, arenas, problems);
   }
 
   private SkyBattleGlobalConfig loadGlobal(ConfigurationSection config) {
@@ -45,27 +53,82 @@ public final class SkyBattleConfigLoader {
     ArenaPoint lobbyPoint = lobby == null || lobby.getConfigurationSection("spawn") == null
         ? fallbackPoint
         : point(lobby.getConfigurationSection("spawn"), "lobby.spawn");
-    ConfigurationSection lobbyScoreboard =
-        lobby == null ? null : lobby.getConfigurationSection("scoreboard");
-    String lobbyScoreboardTitle = lobbyScoreboard == null
-        ? ""
-        : lobbyScoreboard.getString("title", "");
-    List<String> lobbyScoreboardLines = lobbyScoreboard == null
-        ? List.of()
-        : lobbyScoreboard.getStringList("lines");
+    boolean lobbyItems = lobby == null || lobby.getBoolean("give-items", true);
+    Map<SkyBattleMode, SkyBattleModeSettings> modes = new EnumMap<>(SkyBattleMode.class);
+    for (SkyBattleMode mode : SkyBattleMode.values()) {
+      modes.put(mode, modeSettings(mode, config.getConfigurationSection("modes." + mode.key()),
+          config));
+    }
+    ConfigurationSection pack = config.getConfigurationSection("resource-pack");
+    SkyBattleResourcePackSettings resourcePack = new SkyBattleResourcePackSettings(
+        pack != null && pack.getBoolean("enabled", false),
+        pack != null && pack.getBoolean("required", false),
+        pack == null ? "" : pack.getString("prompt", ""),
+        pack == null ? "" : pack.getString("public-url-base", ""));
     return new SkyBattleGlobalConfig(
-        config.getInt("countdown-seconds", 10),
         lobbyWorld,
         lobbyPoint,
-        lobbyScoreboardTitle,
-        lobbyScoreboardLines,
+        lobbyItems,
         fallbackWorld,
         fallbackPoint,
-        config.getInt("max-players", 32),
-        config.getInt("team-size", 4),
         config.getDouble("default-initial-border-radius", 120.0),
         config.getBoolean("save-world-on-unload", false),
-        statsSettings(config.getConfigurationSection("stats")));
+        statsSettings(config.getConfigurationSection("stats")),
+        modes,
+        resourcePack);
+  }
+
+  private SkyBattleModeSettings modeSettings(SkyBattleMode mode, ConfigurationSection section,
+      ConfigurationSection root) {
+    boolean solo = mode == SkyBattleMode.SOLO;
+    int teamSize = section == null ? (solo ? 1 : root.getInt("team-size", 4))
+        : section.getInt("team-size", mode.defaultTeamSize());
+    int maxPlayers = section == null ? (solo ? 8 : root.getInt("max-players", 32))
+        : section.getInt("max-players", teamSize * mode.islands());
+    int minPlayers = section == null ? 2 : section.getInt("min-players", solo ? 2 : 4);
+    List<Integer> placement = section == null || !section.isList("placement-score")
+        ? (solo ? List.of(100, 80, 65, 50, 40, 30, 20, 10)
+            : List.of(160, 130, 105, 85, 65, 50, 35, 20))
+        : section.getIntegerList("placement-score");
+    List<ArenaItemEntry> kit = new ArrayList<>();
+    List<Map<?, ?>> kitEntries = section == null ? List.of() : section.getMapList("kit");
+    if (kitEntries.isEmpty()) {
+      kitEntries = defaultKit(solo);
+    }
+    for (Map<?, ?> entry : kitEntries) {
+      kit.add(items.parse(entry));
+    }
+    return new SkyBattleModeSettings(
+        mode,
+        section == null || section.getBoolean("enabled", true),
+        Math.max(1, teamSize),
+        Math.max(1, Math.min(minPlayers, maxPlayers)),
+        Math.max(1, maxPlayers),
+        Math.max(0, section == null ? root.getInt("countdown-seconds", 10)
+            : section.getInt("countdown-seconds", 10)),
+        section == null ? 30 : section.getInt("queue-countdown-seconds", 30),
+        section == null ? 10 : section.getInt("queue-full-countdown-seconds", 10),
+        Duration.ofSeconds(Math.max(0, section == null ? 300
+            : section.getInt("time-limit-seconds", 300))),
+        Math.max(0, section == null ? (solo ? 25 : 20) : section.getInt("kill-score", 20)),
+        Math.max(0, section == null ? (solo ? 5 : 2) : section.getInt("outlive-score", 2)),
+        placement,
+        Math.max(0.0, section == null ? 2.0 : section.getDouble("border-damage-per-second", 2.0)),
+        kit);
+  }
+
+  /** MCC Island kit: stone sword, bow with 2 (quads) or 4 (solo) arrows, pickaxe, blocks. */
+  private List<Map<?, ?>> defaultKit(boolean solo) {
+    return List.of(
+        Map.of("alias", "team_blocks"),
+        Map.of("alias", "team_chestplate"),
+        Map.of("alias", "team_leggings"),
+        Map.of("alias", "team_boots"),
+        Map.of("material", "STONE_SWORD"),
+        Map.of("material", "BOW"),
+        Map.of("material", "IRON_PICKAXE", "enchantments", Map.of("efficiency", 2)),
+        Map.of("material", "ARROW", "amount", solo ? 4 : 2),
+        Map.of("material", "COOKED_BEEF", "amount", 4));
   }
 
   private StatsSettings statsSettings(ConfigurationSection section) {
@@ -96,7 +159,8 @@ public final class SkyBattleConfigLoader {
         winExperience);
   }
 
-  private List<SkyBattleArenaConfig> loadArenas(File dataFolder, SkyBattleGlobalConfig global) {
+  private List<SkyBattleArenaConfig> loadArenas(File dataFolder, SkyBattleGlobalConfig global,
+      List<String> problems) {
     File arenaFolder = new File(dataFolder, "arena");
     File[] files = arenaFolder.listFiles(file -> file.isFile() && file.getName().endsWith(".yml"));
     if (files == null) {
@@ -106,12 +170,48 @@ public final class SkyBattleConfigLoader {
     List<File> sortedFiles = new ArrayList<>(List.of(files));
     sortedFiles.sort(Comparator.comparing(File::getName));
     List<SkyBattleArenaConfig> arenas = new ArrayList<>();
+    java.util.Set<String> ids = new java.util.HashSet<>();
     for (File file : sortedFiles) {
-      YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
-      ensureVerticalBoundaryDefaults(file, yaml);
-      arenas.add(loadArena(file, yaml, global));
+      try {
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        ensureVerticalBoundaryDefaults(file, yaml);
+        SkyBattleArenaConfig arena = loadArena(file, yaml, global);
+        if (!ids.add(arena.id())) {
+          throw new SkyBattleConfigException("duplicate arena id " + arena.id());
+        }
+        validate(arena, problems);
+        arenas.add(arena);
+      } catch (RuntimeException exception) {
+        String problem = file.getName() + ": " + exception.getMessage();
+        problems.add(problem);
+        plugin.getLogger().warning("Skipping arena " + problem);
+      }
     }
     return List.copyOf(arenas);
+  }
+
+  /** Non fatal checks: reported to admins on reload but the arena stays playable. */
+  private void validate(SkyBattleArenaConfig arena, List<String> problems) {
+    if (arena.teamSpawns().size() < 2) {
+      throw new SkyBattleConfigException("needs spawns for at least 2 teams/players");
+    }
+    for (ArenaTeamSpawn spawn : arena.teamSpawns()) {
+      if (spawn.spawnPoints().isEmpty()) {
+        throw new SkyBattleConfigException("team " + spawn.color() + " has no spawn points");
+      }
+      if (arena.mode() == SkyBattleMode.QUADS && spawn.spawnPoints().size() != 4) {
+        problems.add(arena.id() + ": team " + spawn.color() + " has "
+            + spawn.spawnPoints().size() + " spawns (quads expects 4)");
+      }
+    }
+    if (arena.allChestPoints().isEmpty()) {
+      problems.add(arena.id() + ": has no loot chests");
+    }
+    if (!new File(new File(plugin.getServer().getWorldContainer(), "arena"),
+        arena.templateWorldName()).isDirectory()) {
+      problems.add(arena.id() + ": template world arena/" + arena.templateWorldName()
+          + " not found");
+    }
   }
 
   private SkyBattleArenaConfig loadArena(File file, ConfigurationSection config,
@@ -121,9 +221,14 @@ public final class SkyBattleConfigLoader {
     String templateWorld = requireString(config, "template-world");
     ArenaPoint center = point(requireSection(config, "center"), "center");
     double radius = config.getDouble("initial-border-radius", global.defaultInitialBorderRadius());
+    String modeKey = config.getString("mode", "quads");
+    SkyBattleMode mode = SkyBattleMode.fromKey(modeKey)
+        .orElseThrow(() -> new SkyBattleConfigException("unknown mode " + modeKey));
 
     return new SkyBattleArenaConfig(
         id,
+        config.getString("display-name", id),
+        mode,
         templateWorld,
         center,
         radius,
@@ -186,6 +291,9 @@ public final class SkyBattleConfigLoader {
   private List<ArenaTeamSpawn> teamSpawns(List<java.util.Map<?, ?>> entries) {
     List<ArenaTeamSpawn> spawns = new ArrayList<>();
     for (java.util.Map<?, ?> entry : entries) {
+      if (entry.get("spawns") instanceof List<?> list && list.isEmpty()) {
+        continue;
+      }
       String colorName = String.valueOf(entry.get("color")).toUpperCase(Locale.ROOT);
       ArenaTeamColor color;
       try {
@@ -193,7 +301,10 @@ public final class SkyBattleConfigLoader {
       } catch (IllegalArgumentException exception) {
         throw new SkyBattleConfigException("未知队伍颜色: " + colorName, exception);
       }
-      spawns.add(new ArenaTeamSpawn(color, points((List<?>) entry.get("spawns"), "team-spawns")));
+      if (!(entry.get("spawns") instanceof List<?> rawSpawns)) {
+        throw new SkyBattleConfigException("team " + colorName + " is missing its spawns list");
+      }
+      spawns.add(new ArenaTeamSpawn(color, points(rawSpawns, "team-spawns")));
     }
     return List.copyOf(spawns);
   }

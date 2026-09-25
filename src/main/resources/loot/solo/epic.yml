@@ -1,0 +1,37 @@
+# Sky Battle solo - epic chest
+# Each chest picks `rolls` different variants by weight. A variant can hold several items.
+# Item keys: material | alias (special items), amount, name, lore, enchantments (minecraft keys).
+# Aliases: timed_orb_of_harming, orb_of_poison, orb_of_slowness, orb_of_cleansing,
+#          spark_of_levitation, spark_of_regeneration, spark_of_speed
+rolls: 2
+variants:
+- weight: 3
+  items:
+  - material: DIAMOND_SWORD
+- weight: 2
+  items:
+  - material: DIAMOND_CHESTPLATE
+- weight: 2
+  items:
+  - material: DIAMOND_LEGGINGS
+- weight: 2
+  items:
+  - material: BOW
+    enchantments:
+      power: 2
+- weight: 2
+  items:
+  - material: GOLDEN_APPLE
+    amount: 2
+- weight: 2
+  items:
+  - alias: timed_orb_of_harming
+    amount: 2
+- weight: 1.5
+  items:
+  - material: ENDER_PEARL
+    amount: 2
+- weight: 1
+  items:
+  - material: CREEPER_SPAWN_EGG
+    amount: 2

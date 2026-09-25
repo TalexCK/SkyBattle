@@ -1,7 +1,7 @@
 name: SkyBattle
 version: '${project.version}'
 main: com.talexck.skybattle.SkyBattlePlugin
-description: 基于 Paper 1.21.11 的 SkyBattle 插件。
+description: MCC Island style Sky Battle (Solo & Quads) for Paper 1.21.11 - 26.x.
 author: TalexCK
 api-version: '1.21'
 dependencies:

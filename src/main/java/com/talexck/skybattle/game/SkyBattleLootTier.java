@@ -1,21 +1,27 @@
 package com.talexck.skybattle.game;
 
-import java.util.Locale;
+import org.bukkit.Color;
 import org.bukkit.Material;
 
+/** Colour-coded loot chest tiers. Chest blocks use vanilla (copper) chest looks. */
 public enum SkyBattleLootTier {
-  COMMON("common", Material.CHEST),
-  UNCOMMON("uncommon", Material.WAXED_COPPER_CHEST),
-  RARE("rare", Material.WAXED_EXPOSED_COPPER_CHEST),
-  EPIC("epic", Material.WAXED_WEATHERED_COPPER_CHEST),
-  LEGENDARY("legendary", Material.WAXED_OXIDIZED_COPPER_CHEST);
+  COMMON("common", Material.CHEST, "&f", Color.WHITE),
+  UNCOMMON("uncommon", Material.WAXED_COPPER_CHEST, "&a", Color.LIME),
+  RARE("rare", Material.WAXED_EXPOSED_COPPER_CHEST, "&9", Color.fromRGB(0x5555FF)),
+  EPIC("epic", Material.WAXED_WEATHERED_COPPER_CHEST, "&5", Color.PURPLE),
+  LEGENDARY("legendary", Material.WAXED_OXIDIZED_COPPER_CHEST, "&6", Color.ORANGE);
 
   private final String fileName;
   private final Material chestMaterial;
+  private final String legacyColor;
+  private final Color markerColor;
 
-  SkyBattleLootTier(String fileName, Material chestMaterial) {
+  SkyBattleLootTier(String fileName, Material chestMaterial, String legacyColor,
+      Color markerColor) {
     this.fileName = fileName;
     this.chestMaterial = chestMaterial;
+    this.legacyColor = legacyColor;
+    this.markerColor = markerColor;
   }
 
   public String fileName() {
@@ -30,21 +36,16 @@ public enum SkyBattleLootTier {
     return chestMaterial;
   }
 
-  public String chestDisplayName() {
-    return switch (this) {
-      case COMMON -> "SkyBattle Common Chest";
-      case UNCOMMON -> "SkyBattle Uncommon Chest";
-      case RARE -> "SkyBattle Rare Chest";
-      case EPIC -> "SkyBattle Epic Chest";
-      case LEGENDARY -> "SkyBattle Legendary Chest";
-    };
+  public String legacyColor() {
+    return legacyColor;
   }
 
+  public Color markerColor() {
+    return markerColor;
+  }
+
+  /** Epic and legendary chests lay every item out in its own slot. */
   public boolean splitStacks() {
     return this == EPIC || this == LEGENDARY;
-  }
-
-  public static SkyBattleLootTier fromFileName(String name) {
-    return valueOf(name.toUpperCase(Locale.ROOT));
   }
 }

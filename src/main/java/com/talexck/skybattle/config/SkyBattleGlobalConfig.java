@@ -2,26 +2,33 @@ package com.talexck.skybattle.config;
 
 import com.talexck.minigamelib.api.arena.ArenaPoint;
 import com.talexck.minigamelib.api.stats.StatsSettings;
+import com.talexck.skybattle.game.SkyBattleMode;
 
 import java.util.List;
+import java.util.Map;
 
 public record SkyBattleGlobalConfig(
-    int countdownSeconds,
     String lobbyWorldName,
     ArenaPoint lobbySpawnPoint,
-    String lobbyScoreboardTitle,
-    List<String> lobbyScoreboardLines,
+    boolean lobbyItems,
     String returnWorldName,
     ArenaPoint returnPoint,
-    int maxPlayers,
-    int teamSize,
     double defaultInitialBorderRadius,
     boolean saveWorldOnUnload,
-    StatsSettings statsSettings) {
+    StatsSettings statsSettings,
+    Map<SkyBattleMode, SkyBattleModeSettings> modes,
+    SkyBattleResourcePackSettings resourcePack) {
 
   public SkyBattleGlobalConfig {
-    lobbyScoreboardTitle = lobbyScoreboardTitle == null ? "" : lobbyScoreboardTitle;
-    lobbyScoreboardLines =
-        lobbyScoreboardLines == null ? List.of() : List.copyOf(lobbyScoreboardLines);
+    modes = Map.copyOf(modes);
+  }
+
+  public SkyBattleModeSettings mode(SkyBattleMode mode) {
+    return modes.get(mode);
+  }
+
+  public List<SkyBattleModeSettings> enabledModes() {
+    return java.util.Arrays.stream(SkyBattleMode.values()).map(modes::get)
+        .filter(settings -> settings != null && settings.enabled()).toList();
   }
 }

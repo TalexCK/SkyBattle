@@ -5,11 +5,14 @@ import com.talexck.minigamelib.api.arena.ArenaBoundaryWall;
 import com.talexck.minigamelib.api.arena.ArenaPoint;
 import com.talexck.minigamelib.api.arena.ArenaTeamSpawn;
 import com.talexck.minigamelib.api.arena.ArenaVerticalBoundary;
+import com.talexck.skybattle.game.SkyBattleMode;
 
 import java.util.List;
 
 public record SkyBattleArenaConfig(
     String id,
+    String displayName,
+    SkyBattleMode mode,
     String templateWorldName,
     ArenaPoint center,
     double initialBorderRadius,
@@ -32,5 +35,10 @@ public record SkyBattleArenaConfig(
             legendaryChests)
         .flatMap(List::stream)
         .toList();
+  }
+
+  /** Players the map can hold with the given team size. */
+  public int capacity(int teamSize) {
+    return teamSpawns.size() * Math.max(1, teamSize);
   }
 }
