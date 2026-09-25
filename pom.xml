@@ -6,17 +6,30 @@
 
     <groupId>com.talexck</groupId>
     <artifactId>skybattle</artifactId>
-    <version>0.1.0</version>
+    <version>0.2.0</version>
     <packaging>jar</packaging>
 
     <name>SkyBattle</name>
-    <description>基于 Paper 1.21.11 的 SkyBattle 插件。</description>
+    <description>MCC Island style Sky Battle (Solo &amp; Quads) for Paper 1.21.11 - 26.x.</description>
 
     <properties>
         <maven.compiler.release>21</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <paper.version>1.21.11-R0.1-SNAPSHOT</paper.version>
     </properties>
+
+    <!--
+      Default build compiles against the oldest supported API (1.21.11) so the jar loads on
+      1.21.11 and every newer server (26.1 - 26.3). Use -Ppaper-26 to check against the 26.x API.
+    -->
+    <profiles>
+        <profile>
+            <id>paper-26</id>
+            <properties>
+                <paper.version>[26.3.build,)</paper.version>
+            </properties>
+        </profile>
+    </profiles>
 
     <repositories>
         <repository>
@@ -35,7 +48,7 @@
         <dependency>
             <groupId>com.talexck.minigamelib</groupId>
             <artifactId>minigamelib</artifactId>
-            <version>0.1.0</version>
+            <version>0.2.0</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
@@ -46,10 +59,6 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
-                <excludes>
-                    <exclude>resourcepacks/**/*.zip</exclude>
-                    <exclude>resourcepacks/**/*.png</exclude>
-                </excludes>
             </resource>
         </resources>
         <plugins>
@@ -62,14 +71,25 @@
                 </configuration>
             </plugin>
             <plugin>
+                <!-- Zips resourcepack/pack into the jar as resourcepack/skybattle-resourcepack.zip -->
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.1</version>
-                <configuration>
-                    <excludes>
-                        <exclude>resourcepacks/**</exclude>
-                    </excludes>
-                </configuration>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>zip-resource-pack</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <zip destfile="${project.build.outputDirectory}/resourcepack/skybattle-resourcepack.zip"
+                                     basedir="${project.basedir}/resourcepack/pack"/>
+                            </target>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

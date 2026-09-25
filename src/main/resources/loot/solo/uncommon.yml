@@ -1,0 +1,38 @@
+# Sky Battle solo - uncommon chest
+# Each chest picks `rolls` different variants by weight. A variant can hold several items.
+# Item keys: material | alias (special items), amount, name, lore, enchantments (minecraft keys).
+# Aliases: timed_orb_of_harming, orb_of_poison, orb_of_slowness, orb_of_cleansing,
+#          spark_of_levitation, spark_of_regeneration, spark_of_speed
+rolls: 2
+variants:
+- weight: 3
+  items:
+  - material: IRON_SWORD
+- weight: 2
+  items:
+  - material: IRON_LEGGINGS
+- weight: 2
+  items:
+  - material: ARROW
+    amount: 4
+- weight: 2
+  items:
+  - material: TNT
+- weight: 2
+  items:
+  - alias: timed_orb_of_harming
+- weight: 2
+  items:
+  - alias: orb_of_poison
+- weight: 1.5
+  items:
+  - material: CREEPER_SPAWN_EGG
+- weight: 1.5
+  items:
+  - alias: spark_of_speed
+- weight: 1
+  items:
+  - material: ENDER_PEARL
+- weight: 1
+  items:
+  - material: FISHING_ROD

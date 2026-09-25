@@ -1,212 +1,94 @@
 # SkyBattle
 
-SkyBattle 是基于 Paper 1.21.11 和 MinigameLib 的 MCC Island Sky Battle
-复刻插件。
+基于 [MinigameLib](https://github.com/TalexCK/MinigameLib) 的 **MCC Island 空岛大战** 复刻插件，
+包含 **单人（Solo）** 与 **四人组（Quads）** 两种模式。
 
-可复用玩法逻辑尽量交给 MinigameLib：
-
-- Arena 生命周期、运行世界、传送、倒计时、胜利判定
-- 队伍无限混凝土方块
-- Loot chest 生成和按权重抽取变体
-- TNT 放下即点燃
-- 投掷/自用特殊道具效果
+- 支持服务端：**Paper 1.21.11 以及 26.1 – 26.3**（同一个 jar，Java 21+）。
+- 依赖：**MinigameLib 0.2.0**、**TAB**；可选 DecentHolograms（全息榜单）。
 
 英文文档见 [README.md](README.md)。
 
-## 配置
+## 玩法
 
-总配置位于：
+| | 单人 | 四人组 |
+|---|---|---|
+| 人数 | 8 人，每人一座岛 | 8 队 × 4 人（先填满队伍再开新队） |
+| 初始装备 | 石剑、弓、**4 支箭**、铁镐、无限队伍方块、队伍皮革甲、牛排 | 同上，**2 支箭** |
+| 战利品 | `loot/solo/<品质>.yml` | `loot/quads/<品质>.yml` |
+| 回合 | 5 分钟，圆形边界分阶段收缩 | 同左 |
+| 得分 | 击杀 25、每多活过一名敌人 5、名次奖励 | 击杀 20、每多活过一名敌人 2、队伍名次奖励 |
 
-```text
-plugins/SkyBattle/config.yml
-```
+- 五种颜色补给箱：普通 / 优良 / 稀有 / 史诗 / 传说。
+- 特殊道具：定时伤害宝珠、剧毒宝珠、迟缓宝珠、净化宝珠、飘浮火花（2.5 秒约 13 格）、
+  生命恢复火花、迅捷火花。
+- TNT 放下即点燃，苦力怕蛋、击落虚空/TNT/苦力怕/宝珠都会正确记录击杀。
+- 边界：圆形，按阶段从四周收缩（可选上下边界）。边界外每秒掉血，掉入虚空立即淘汰。
+- 游戏中退出视为淘汰，重新进入以旁观者身份回到对局。
+- 时间到时，存活队伍按存活人数、再按得分排名。
 
-每张地图一个 arena 模板：
+所有数值（队伍人数、人数上下限、时长、得分、初始装备）都在 `config.yml -> modes` 中按模式配置。
 
-```text
-plugins/SkyBattle/arena/<arena>.yml
-```
+## 游玩
 
-可以通过游戏内 setup 生成：
+大厅玩家会得到 **游戏选择指南针**（或输入 `/skb`），选择模式即加入队列；人数达到下限后开始倒计时，
+队列满员时倒计时缩短。
 
-```text
-/skb setup <arena> <worldName>
-```
-
-该命令会复制并加载服务器目录：
-
-```text
-arena/<worldName>
-```
-
-随后把执行玩家传送到临时 setup 世界，通过聊天提示和 MinigameLib 方块标记器完成：
-
-- 标记 arena 中心点
-- 输入初始边界半径
-- 输入初始边界墙 `x1 x2 z1 z2`，或 `skip`
-- 依次标记 8 队各 4 个出生点
-- 依次标记 common / uncommon / rare / epic / legendary 箱子
-- 每类箱子标完输入 `done`
-- 输入边界阶段 `x距离 z距离 下边界Y 上边界Y 延迟秒 收缩秒`
-- 旧格式 `x距离 z距离 延迟秒 收缩秒` 也可以使用
-- 所有边界阶段输入完成后输入 `done`
-
-完成后会保存：
-
-```text
-plugins/SkyBattle/arena/<arena>.yml
-```
-
-玩家会被传回原世界，临时 setup 世界会被删除。
-
-上下边界可选。`-1` 表示不启用对应上下边界：
-
-```yaml
-vertical-boundary:
-  lower-y: -1.0
-  upper-y: -1.0
-```
-
-箱子坐标按 MCC Island 风格分为五级：
-
-```yaml
-commonchest:
-  - "78,82,0"
-uncommonchest:
-  - "45,82,0"
-rarechest:
-  - "28,82,0"
-epicchest:
-  - "18,82,18"
-legendarychest:
-  - "0,82,0"
-```
-
-Loot table 位于：
-
-```text
-plugins/SkyBattle/loot/common.yml
-plugins/SkyBattle/loot/uncommon.yml
-plugins/SkyBattle/loot/rare.yml
-plugins/SkyBattle/loot/epic.yml
-plugins/SkyBattle/loot/legendary.yml
-```
-
-每个箱子会从 `variants` 中抽取一个变体。一个变体可以包含多件物品：
-
-```yaml
-variants:
-  - weight: 1.0
-    items:
-      - name: 冲击 I 弓
-        material: BOW
-        enchantments:
-          punch: 1
-      - name: TNT
-        material: TNT
-        amount: 2
-```
-
-附魔物品通过 MinigameLib 的 `ArenaItemFactory` 构造。配置中使用 Minecraft
-附魔 key，例如 `efficiency`、`knockback`、`quick_charge`。
+游戏内：MCC 风格侧边栏（时间、边界状态、存活人数/队伍、击杀、得分）、四栏 TAB 列表（队伍名单、
+实时排名、个人数据）、Boss 栏计时、击杀/淘汰标题、胜利烟花以及带个人名次的结算。
 
 ## 命令
 
-```text
-/skb reload
-/skb list
-/skb start [arena]
-/skb stop <arenaId>
-/skb destroy <arenaId>
-/skb setup <arena> <worldName>
-/skb spawn
-```
+| 命令 | 权限 | 说明 |
+|---|---|---|
+| `/skb` | 所有人 | 打开模式菜单 |
+| `/skb join <solo\|quads>` / `/skb leave` | 所有人 | 排队 / 离开队列 |
+| `/skb stats [玩家]` | 所有人 | 击杀、胜场、经验 |
+| `/skb list` | 管理员 | 地图、进行中的对局、队列（可点击） |
+| `/skb start [地图\|模式]` | 管理员 | 用当前世界的玩家立即开局（管理员可单人测试） |
+| `/skb forcestart <模式>` | 管理员 | 立即开始某个队列 |
+| `/skb stop <id>` / `/skb destroy <id>` | 管理员 | 结束对局 |
+| `/skb setup <地图ID> <世界> [solo\|quads]` | 管理员 | 地图编辑器 |
+| `/skb spawn` | 管理员 | 设置大厅出生点和返回点 |
+| `/skb board <kills\|wins\|experience> <create\|list\|delete> [id]` | 管理员 | 全息榜单 |
+| `/skb reload` | 管理员 | 重载配置、地图、战利品和语言 |
 
-`/skb start [arena]` 会生成随机运行 arenaId，并拉取执行者当前世界的所有玩家直接开局。
-如果省略 `[arena]`，SkyBattle 会从已加载的 arena 模板里随机选择一个。
+权限节点为 `skybattle.command.<子命令>`；`join/leave/menu/stats/help` 默认所有人可用，其余默认 OP。
+`skybattle.admin` 拥有全部权限。
 
-## 材质包
+## 地图配置
 
-资源包文件刻意不纳入 Git：
+1. 把模板世界放到 `<服务器>/arena/<世界名>`。
+2. 执行 `/skb setup <地图ID> <世界名> [solo|quads]`。插件会加载一个临时副本并给你标记木斧
+   （左键 = 标记）。每一步都有可点击的 **[完成] [跳过] [撤销] [取消]** 按钮，Boss 栏显示进度，
+   已标记的点会发光并显示标签。
+3. 步骤：中心（可用脚下方块）→ 边界半径 → 可选矩形边界 → 可选上下边界 → 出生点（四人组：每队
+   3x3 平台的四个角；单人：每座岛一个方块；至少 2 个）→ 各品质补给箱 → 边界阶段（可一键默认）。
+4. 保存到 `plugins/SkyBattle/arena/<地图ID>.yml`，点击聊天中的按钮执行 reload 即可使用。
 
-```text
-src/main/resources/resourcepacks/
-src/main/resources/resourcepack-src/
-```
+也可以手动编辑地图文件，格式见英文文档示例（`mode: solo|quads`、`display-name` 为新增字段，
+旧文件默认按 quads 读取）。
 
-分发资源包前，请在外部资源包目录制作：
+## 战利品
 
-```text
-src/main/resources/resourcepacks/skybattle-items.zip
-```
+`plugins/SkyBattle/loot/<模式>/<品质>.yml`，每个箱子按权重抽取 `rolls` 个不同变体，一个变体可包含多个物品。
+物品支持 `material`、`alias`、`amount`、`name`、`lore`、`enchantments`。`config.yml` 中的初始装备使用相同格式。
+0.1.0 的 `loot/<品质>.yml` 不再读取，如有修改请复制到 `loot/quads/`。
 
-这个 zip 不再打进插件 jar。玩家只有通过服务器原生配置、代理/CDN 或其他外部方式
-加载该资源包后，药水球和火花才会显示为自定义外观。
+## 资源包
 
-`pack.mcmeta` 应使用：
+资源包源文件位于 [`resourcepack/pack`](resourcepack/pack)，构建时自动打包进插件 jar；启动时导出到
+`plugins/SkyBattle/skybattle-resourcepack.zip`，可用于 `server.properties` 或 CDN 分发。
+把 `resource-pack.enabled` 设为 `true` 可由 MinigameLib 内置 HTTP 服务自动下发（端口在
+`plugins/MinigameLib/config.yml` 配置）。不装资源包时道具显示为原版外观。
 
-```json
-{
-  "pack": {
-    "pack_format": 75,
-    "description": "SkyBattle Resource"
-  }
-}
-```
-
-SkyBattle 不再通过 MinigameLib 自动下发资源包。请使用服务器原生
-`server-resource-pack` 配置、代理/CDN 或其他外部方式分发资源包。
-
-### Loot Chest 方块
-
-SkyBattle 的箱子等级和方块对应关系：
-
-- common：`CHEST`
-- uncommon：`WAXED_COPPER_CHEST`
-- rare：`WAXED_EXPOSED_COPPER_CHEST`
-- epic：`WAXED_WEATHERED_COPPER_CHEST`
-- legendary：`WAXED_OXIDIZED_COPPER_CHEST`
-
-Loot chest 现在使用原版 Minecraft 方块材质。除非你明确想替换这些原版外观，
-否则资源包里不要再放 chest entity texture 覆盖文件。
-
-### 必需药水球和火花物品
-
-药水球和火花投射物使用 MinigameLib 的 `ItemDisplay` 显示实体。请为这些
-物品类型和 CustomModelData 提供模型/贴图：
-
-```text
-FIRE_CHARGE   custom_model_data=1001  瞬间伤害球
-SLIME_BALL    custom_model_data=1002  快速中毒球
-SNOWBALL      custom_model_data=1003  净化宝珠
-FEATHER       custom_model_data=1004  飘浮火花
-BLAZE_POWDER  custom_model_data=1005  生命恢复火花
-```
-
-期望的资源包条目：
-
-```text
-assets/minecraft/models/item/fire_charge.json
-assets/minecraft/models/item/slime_ball.json
-assets/minecraft/models/item/snowball.json
-assets/minecraft/models/item/feather.json
-assets/minecraft/models/item/blaze_powder.json
-assets/skybattle/models/item/timed_orb_of_harming.json
-assets/skybattle/models/item/quick_timed_orb_of_poison.json
-assets/skybattle/models/item/orb_of_cleansing.json
-assets/skybattle/models/item/spark_of_levitation.json
-assets/skybattle/models/item/spark_of_regeneration.json
-assets/skybattle/textures/item/timed_orb_of_harming.png
-assets/skybattle/textures/item/quick_timed_orb_of_poison.png
-assets/skybattle/textures/item/orb_of_cleansing.png
-assets/skybattle/textures/item/spark_of_levitation.png
-assets/skybattle/textures/item/spark_of_regeneration.png
-```
+使用 `python3 resourcepack/tools/generate_pack.py`（需要 Pillow）可重新生成贴图。
 
 ## 构建
 
 ```bash
-mvn package
+# 在 MinigameLib 仓库
+mvn install
+# 在本仓库
+mvn package                 # target/skybattle-0.2.0.jar
+mvn -Ppaper-26 compile      # 可选：用 26.x API 检查
 ```
-
-插件 jar 会生成在 `target/` 目录下。

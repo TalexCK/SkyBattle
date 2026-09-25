@@ -1,7 +1,11 @@
-countdown-seconds: 10
+# ------------------------------------------------------------------
+#  SkyBattle - MCC Island style Sky Battle (Solo & Quads)
+#  Paper 1.21.11 - 26.x, requires MinigameLib + TAB
+# ------------------------------------------------------------------
+
+# Language file in plugins/SkyBattle/lang/ (bundled: zh_cn, en_us)
 language: zh_cn
-max-players: 32
-team-size: 4
+
 default-initial-border-radius: 120.0
 save-world-on-unload: false
 
@@ -13,20 +17,17 @@ lobby:
     z: 0.5
     yaw: 0.0
     pitch: 0.0
-  scoreboard:
-    title: "&b&l✦ SKYBATTLE ✦"
-    lines:
-      - "&8&m                    "
-      - "&f玩家 &8» &b{player}"
-      - ""
-      - "&c击杀 &8» &f{kills}"
-      - "&6获胜 &8» &f{wins}"
-      - "&b积分 &8» &f{experience}"
-      - ""
-      - "&e开局 &8» &f/skb start"
-      - "&e榜单 &8» &f/skb board"
-      - "&8&m                    "
+  # Give lobby players the game selector compass (hotbar slot 5).
+  give-items: true
+  # Lobby sidebar. Remove this section to use the texts from the language file.
+  # Placeholders: {player} {kills} {wins} {experience} {online} {queue} {queue_count}
+  #               {solo_queue} {quads_queue} {games}
+  # scoreboard:
+  #   title: "&b&l✦ SKY BATTLE ✦"
+  #   lines:
+  #     - "&7Player &f{player}"
 
+# Where players are sent after a game (normally the lobby spawn; /skb spawn sets both).
 return:
   world: world
   point:
@@ -36,9 +37,84 @@ return:
     yaw: 0.0
     pitch: 0.0
 
+# Each mode has its own queue, kit, loot tables (plugins/SkyBattle/loot/<mode>/) and scoring.
+# Arena maps declare their mode with "mode: solo|quads" in plugins/SkyBattle/arena/<arena>.yml.
+modes:
+  solo:
+    enabled: true
+    team-size: 1
+    min-players: 2
+    max-players: 8
+    # Seconds players stay caged on their island before the fight.
+    countdown-seconds: 10
+    # Lobby queue countdown once min-players are waiting / once the queue is full.
+    queue-countdown-seconds: 30
+    queue-full-countdown-seconds: 10
+    # MCC Island rounds last 5 minutes.
+    time-limit-seconds: 300
+    # Score for eliminating a player, for every enemy that dies while you are alive,
+    # and the placement bonus (index 0 = 1st place).
+    kill-score: 25
+    outlive-score: 5
+    placement-score: [100, 80, 65, 50, 40, 30, 20, 10]
+    border-damage-per-second: 2.0
+    # Starting kit. Items use the same format as loot tables (material/alias/amount/enchantments).
+    kit:
+      - alias: team_blocks
+      - alias: team_chestplate
+      - alias: team_leggings
+      - alias: team_boots
+      - material: STONE_SWORD
+      - material: BOW
+      - material: IRON_PICKAXE
+        enchantments:
+          efficiency: 2
+      - material: ARROW
+        amount: 4
+      - material: COOKED_BEEF
+        amount: 4
+  quads:
+    enabled: true
+    team-size: 4
+    min-players: 4
+    max-players: 32
+    countdown-seconds: 10
+    queue-countdown-seconds: 45
+    queue-full-countdown-seconds: 10
+    time-limit-seconds: 300
+    kill-score: 20
+    outlive-score: 2
+    placement-score: [160, 130, 105, 85, 65, 50, 35, 20]
+    border-damage-per-second: 2.0
+    kit:
+      - alias: team_blocks
+      - alias: team_chestplate
+      - alias: team_leggings
+      - alias: team_boots
+      - material: STONE_SWORD
+      - material: BOW
+      - material: IRON_PICKAXE
+        enchantments:
+          efficiency: 2
+      - material: ARROW
+        amount: 2
+      - material: COOKED_BEEF
+        amount: 4
+
+# Custom orb/spark models. The pack is always exported to plugins/SkyBattle/skybattle-resourcepack.zip
+# so you can host it yourself (server.properties resource-pack / CDN).
+resource-pack:
+  # true = MinigameLib sends the bundled pack to joining players from its built-in web server
+  # (configure plugins/MinigameLib/config.yml -> resource-pack-server).
+  enabled: false
+  required: false
+  prompt: "&bSkyBattle &7uses a small resource pack for its orbs and sparks."
+  # Optional public base URL if a proxy/CDN serves MinigameLib's /resourcepacks/ path.
+  public-url-base: ""
+
 stats:
   storage:
-    # sqlite 为默认本地存储；mysql/postgresql 请填写 jdbc-url、username、password。
+    # sqlite is the local default; for mysql/postgresql fill in jdbc-url, username, password.
     type: sqlite
     sqlite-file: stats.db
     jdbc-url: ""

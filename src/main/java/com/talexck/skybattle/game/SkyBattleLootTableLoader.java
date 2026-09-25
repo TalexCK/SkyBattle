@@ -1,11 +1,8 @@
 package com.talexck.skybattle.game;
 
 import com.talexck.minigamelib.api.arena.ArenaItemEntry;
-import com.talexck.minigamelib.api.arena.ArenaItemEnchantment;
-import com.talexck.minigamelib.api.arena.ArenaItemFactory;
-import com.talexck.minigamelib.api.arena.ArenaItemMode;
 import com.talexck.minigamelib.api.arena.ArenaLootEntry;
-import org.bukkit.Material;
+import com.talexck.skybattle.config.SkyBattleConfigException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -13,160 +10,69 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
+/**
+ * Loads {@code plugins/SkyBattle/loot/<mode>/<tier>.yml}. Each chest rolls a number of variants
+ * ({@code rolls}, default 1) from {@code variants}; a variant can hold several items.
+ */
 public final class SkyBattleLootTableLoader {
 
   private final JavaPlugin plugin;
+  private final SkyBattleItems items;
 
-  public SkyBattleLootTableLoader(JavaPlugin plugin) {
+  public SkyBattleLootTableLoader(JavaPlugin plugin, SkyBattleItems items) {
     this.plugin = plugin;
+    this.items = items;
   }
 
-  public Map<SkyBattleLootTier, SkyBattleLootTable> load() {
-    saveDefaultLootFiles();
-    Map<SkyBattleLootTier, SkyBattleLootTable> tables =
-        new EnumMap<>(SkyBattleLootTier.class);
-    for (SkyBattleLootTier tier : SkyBattleLootTier.values()) {
-      File file = new File(plugin.getDataFolder(), "loot/" + tier.fileName() + ".yml");
-      tables.put(tier, loadTier(file));
-    }
-    return Map.copyOf(tables);
-  }
-
-  private void saveDefaultLootFiles() {
-    for (SkyBattleLootTier tier : SkyBattleLootTier.values()) {
-      String path = "loot/" + tier.fileName() + ".yml";
-      if (!new File(plugin.getDataFolder(), path).isFile()) {
-        plugin.saveResource(path, false);
+  public Map<SkyBattleMode, Map<SkyBattleLootTier, SkyBattleLootTable>> load() {
+    Map<SkyBattleMode, Map<SkyBattleLootTier, SkyBattleLootTable>> result =
+        new EnumMap<>(SkyBattleMode.class);
+    for (SkyBattleMode mode : SkyBattleMode.values()) {
+      Map<SkyBattleLootTier, SkyBattleLootTable> tables = new EnumMap<>(SkyBattleLootTier.class);
+      for (SkyBattleLootTier tier : SkyBattleLootTier.values()) {
+        String path = "loot/" + mode.key() + "/" + tier.fileName() + ".yml";
+        File file = new File(plugin.getDataFolder(), path);
+        if (!file.isFile()) {
+          plugin.saveResource(path, false);
+        }
+        try {
+          tables.put(tier, loadTier(file));
+        } catch (RuntimeException exception) {
+          throw new SkyBattleConfigException(path + ": " + exception.getMessage(), exception);
+        }
       }
+      result.put(mode, Map.copyOf(tables));
     }
+    return Map.copyOf(result);
   }
 
   private SkyBattleLootTable loadTier(File file) {
     YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
-    List<Map<?, ?>> entries = yaml.getMapList("variants");
     List<ArenaLootEntry> loot = new ArrayList<>();
-    for (Map<?, ?> entry : entries) {
+    for (Map<?, ?> entry : yaml.getMapList("variants")) {
       loot.add(toLootEntry(entry));
     }
-    return new SkyBattleLootTable(loot);
+    int rolls = Math.max(1, yaml.getInt("rolls", 1));
+    return new SkyBattleLootTable(loot, rolls);
   }
 
   private ArenaLootEntry toLootEntry(Map<?, ?> variant) {
-    List<ArenaItemEntry> items = new ArrayList<>();
-    Object rawItems = variant.get("items");
-    if (!(rawItems instanceof List<?> itemList)) {
-      throw new IllegalArgumentException("loot variant 缺少 items 列表");
+    if (!(variant.get("items") instanceof List<?> itemList)) {
+      throw new SkyBattleConfigException("loot variant is missing its items list");
     }
+    List<ArenaItemEntry> entries = new ArrayList<>();
     for (Object rawItem : itemList) {
       if (!(rawItem instanceof Map<?, ?> itemSection)) {
-        throw new IllegalArgumentException("loot variant item 必须是对象");
+        throw new SkyBattleConfigException("loot items must be maps");
       }
-      items.add(toItem(itemSection));
+      entries.add(items.parse(itemSection));
     }
-    return new ArenaLootEntry(
-        items,
-        number(variant, "weight", 1.0),
-        integer(variant, "earliest-generation-round", 0));
-  }
-
-  private ArenaItemEntry toItem(Map<?, ?> section) {
-    String alias = string(section, "alias", "");
-    int amount = integer(section, "amount", 1);
-    String name = string(section, "name", alias.isBlank() ? "" : defaultAliasName(alias));
-    return alias.isBlank()
-        ? materialItem(section, name, amount)
-        : aliasItem(alias, name, amount, section);
-  }
-
-  private ArenaItemEntry aliasItem(String alias, String name, int amount, Map<?, ?> section) {
-    return switch (alias.toLowerCase(Locale.ROOT)) {
-      case "timed_orb_of_harming" -> SkyBattleItems.harmingOrb(name, amount, false);
-      case "quick_timed_orb_of_poison" -> SkyBattleItems.poisonOrb(name, amount, true);
-      case "orb_of_cleansing" -> SkyBattleItems.cleansingOrb(name, amount);
-      case "spark_of_levitation" -> SkyBattleItems.levitationSpark(name, amount);
-      case "spark_of_regeneration" -> SkyBattleItems.regenerationSpark(name, amount);
-      default -> materialItem(section, name, amount);
-    };
-  }
-
-  private String defaultAliasName(String alias) {
-    return switch (alias.toLowerCase(Locale.ROOT)) {
-      case "timed_orb_of_harming" -> "瞬间伤害球";
-      case "quick_timed_orb_of_poison" -> "快速中毒球";
-      case "orb_of_cleansing" -> "净化宝珠";
-      case "spark_of_levitation" -> "飘浮火花";
-      case "spark_of_regeneration" -> "生命恢复火花";
-      default -> alias;
-    };
-  }
-
-  private ArenaItemEntry materialItem(Map<?, ?> section, String name, int amount) {
-    Material material = Material.matchMaterial(string(section, "material", ""));
-    if (material == null) {
-      throw new IllegalArgumentException("未知物品材质: " + section.get("material"));
-    }
-    ArenaItemMode mode = ArenaItemMode.valueOf(
-        string(section, "mode", ArenaItemMode.DEFAULT.name()).toUpperCase(Locale.ROOT));
-    List<ArenaItemEnchantment> enchantments = new ArrayList<>();
-    Object rawEnchantments = section.get("enchantments");
-    if (rawEnchantments instanceof Map<?, ?> enchantmentMap) {
-      for (Map.Entry<?, ?> entry : enchantmentMap.entrySet()) {
-        enchantments.add(new ArenaItemEnchantment(String.valueOf(entry.getKey()),
-            integerValue(entry.getValue(), 1)));
-      }
-    }
-    return ArenaItemFactory.item(name, material, amount, mode, enchantments, material == Material.TNT,
-        splitInLoot(material));
-  }
-
-  private boolean splitInLoot(Material material) {
-    return switch (material) {
-      case TNT, ENDER_PEARL, CREEPER_SPAWN_EGG -> true;
-      default -> material.getMaxStackSize() == 1;
-    };
-  }
-
-  private String string(Map<?, ?> map, String key, String fallback) {
-    Object value = map.get(key);
-    return value == null ? fallback : String.valueOf(value);
-  }
-
-  private int integer(Map<?, ?> map, String key, int fallback) {
-    Object value = map.get(key);
-    return value == null ? fallback : integerValue(value, fallback);
-  }
-
-  private int integerValue(Object value, int fallback) {
-    if (value == null) {
-      return fallback;
-    }
-    if (value instanceof Number number) {
-      return number.intValue();
-    }
-    try {
-      return Integer.parseInt(String.valueOf(value));
-    } catch (NumberFormatException exception) {
-      throw new com.talexck.skybattle.config.SkyBattleConfigException(
-          "战利品配置需要整数，实际为: " + value, exception);
-    }
-  }
-
-  private double number(Map<?, ?> map, String key, double fallback) {
-    Object value = map.get(key);
-    if (value == null) {
-      return fallback;
-    }
-    if (value instanceof Number number) {
-      return number.doubleValue();
-    }
-    try {
-      return Double.parseDouble(String.valueOf(value));
-    } catch (NumberFormatException exception) {
-      throw new com.talexck.skybattle.config.SkyBattleConfigException(
-          "战利品配置项 " + key + " 需要数字，实际为: " + value, exception);
-    }
+    Object weight = variant.get("weight");
+    double parsedWeight = weight instanceof Number number ? number.doubleValue()
+        : weight == null ? 1.0 : Double.parseDouble(String.valueOf(weight));
+    return new ArenaLootEntry(entries, parsedWeight,
+        SkyBattleItems.integer(variant, "earliest-generation-round", 0));
   }
 }

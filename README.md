@@ -1,219 +1,132 @@
 # SkyBattle
 
-SkyBattle is a Paper 1.21.11 plugin that recreates the MCC Island Sky Battle
-game mode on top of MinigameLib.
+A Paper plugin that recreates **MCC Island Sky Battle** with both of its modes,
+**Solo** and **Quads**, on top of [MinigameLib](https://github.com/TalexCK/MinigameLib).
 
-Most reusable game logic is delegated to MinigameLib:
+- Supported servers: **Paper 1.21.11 and 26.1 – 26.3** (one jar, Java 21+).
+- Required plugins: **MinigameLib 0.2.0**, **TAB**. Optional: DecentHolograms (leaderboards).
 
-- arena lifecycle, runtime worlds, teleporting, countdowns and win checks
-- per-team infinite concrete blocks
-- loot chest filling and weighted variant selection
-- instant TNT ignition after placement
-- throwable and self-cast special item effects
+Chinese documentation: [README.zh_CN.md](README.zh_CN.md).
 
-Chinese documentation is available in [README.zh_CN.md](README.zh_CN.md).
+## Gameplay
 
-## Configuration
+| | Solo | Quads |
+|---|---|---|
+| Players | 8, one per island | 8 teams of 4 (fills teams before opening new ones) |
+| Kit | stone sword, bow, **4 arrows**, iron pickaxe, infinite team blocks, team leather armour, steak | same with **2 arrows** |
+| Loot | `loot/solo/<tier>.yml` | `loot/quads/<tier>.yml` |
+| Round | 5 minutes, round shrinking border | 5 minutes, round shrinking border |
+| Score | 25 per kill, 5 per enemy outlived, placement bonus | 20 per kill, 2 per enemy outlived, team placement bonus |
 
-Global configuration is stored at:
+- Colour-coded loot chests: common, uncommon, rare, epic, legendary (vanilla chest / copper chests).
+- Special items: Timed Orb of Harming, Orb of Poison, Orb of Slowness, Orb of Cleansing,
+  Spark of Levitation (≈13 blocks over 2.5 s), Spark of Regeneration, Spark of Speed.
+- TNT ignites when placed, creepers from eggs, kill credit for knock-offs, TNT, creepers and orbs.
+- Border: circle that shrinks in stages from the sides (optionally the top/bottom too).
+  Standing outside hurts every second; falling into the void eliminates instantly.
+- Players who leave mid-game are eliminated; rejoining puts them back as spectators.
+- When the time runs out the surviving teams are ranked by players alive, then score.
 
-```text
-plugins/SkyBattle/config.yml
-```
+All numbers (team size, player limits, timer, scores, kit) are configurable per mode in
+`config.yml -> modes`.
 
-Each map has one arena template:
+## Playing
 
-```text
-plugins/SkyBattle/arena/<arena>.yml
-```
+Players get a **game selector compass** in the lobby (or use `/skb`). Picking a mode joins its
+queue; the game starts once enough players are waiting (shorter countdown when the queue is full).
 
-An arena can be created in game with:
-
-```text
-/skb setup <arena> <worldName>
-```
-
-The setup command copies and loads this server directory:
-
-```text
-arena/<worldName>
-```
-
-The executing player is moved into a temporary setup world. The setup flow uses
-chat prompts plus the MinigameLib block marker tool:
-
-- mark the arena center
-- enter the initial boundary radius
-- enter the initial boundary wall as `x1 x2 z1 z2`, or `skip`
-- mark 4 spawn points for each of the 8 teams
-- mark common / uncommon / rare / epic / legendary loot chests
-- type `done` after each chest tier
-- enter boundary stages as `xDistance zDistance lowerY upperY delaySeconds shrinkSeconds`
-- old stage format `xDistance zDistance delaySeconds shrinkSeconds` is also accepted
-- type `done` after all boundary stages
-
-When setup is complete, the plugin saves:
-
-```text
-plugins/SkyBattle/arena/<arena>.yml
-```
-
-The player is returned to the original world and the temporary setup world is
-deleted.
-
-Vertical boundaries are optional. `-1` disables a side of the vertical boundary:
-
-```yaml
-vertical-boundary:
-  lower-y: -1.0
-  upper-y: -1.0
-```
-
-Loot chest points are grouped by MCC Island-style tiers:
-
-```yaml
-commonchest:
-  - "78,82,0"
-uncommonchest:
-  - "45,82,0"
-rarechest:
-  - "28,82,0"
-epicchest:
-  - "18,82,18"
-legendarychest:
-  - "0,82,0"
-```
-
-Loot tables are stored at:
-
-```text
-plugins/SkyBattle/loot/common.yml
-plugins/SkyBattle/loot/uncommon.yml
-plugins/SkyBattle/loot/rare.yml
-plugins/SkyBattle/loot/epic.yml
-plugins/SkyBattle/loot/legendary.yml
-```
-
-Each chest rolls exactly one variant from `variants`. A variant can contain
-multiple items:
-
-```yaml
-variants:
-  - weight: 1.0
-    items:
-      - name: Punch I Bow
-        material: BOW
-        enchantments:
-          punch: 1
-      - name: TNT
-        material: TNT
-        amount: 2
-```
-
-Enchanted items are built through MinigameLib's `ArenaItemFactory`. Use
-Minecraft enchantment keys such as `efficiency`, `knockback` and `quick_charge`.
+In game: MCC-style sidebar (time, border status, players/teams alive, kills, score), a four
+column tablist (team roster, live standings, personal stats), boss bar timer, kill/elimination
+titles, victory fireworks and an end-of-game summary with your placement.
 
 ## Commands
 
-```text
-/skb reload
-/skb list
-/skb start [arena]
-/skb stop <arenaId>
-/skb destroy <arenaId>
-/skb setup <arena> <worldName>
-/skb spawn
+| Command | Who | |
+|---|---|---|
+| `/skb` | everyone | opens the mode menu |
+| `/skb join <solo\|quads>` / `/skb leave` | everyone | queue |
+| `/skb stats [player]` | everyone | kills, wins, experience |
+| `/skb list` | admin | maps, live games, queues (clickable) |
+| `/skb start [map\|mode]` | admin | start now with the players in your world (admins can test alone) |
+| `/skb forcestart <mode>` | admin | start a queue now |
+| `/skb stop <id>` / `/skb destroy <id>` | admin | end a game |
+| `/skb setup <mapId> <world> [solo\|quads]` | admin | map editor (below) |
+| `/skb spawn` | admin | set lobby spawn + return point |
+| `/skb board <kills\|wins\|experience> <create\|list\|delete> [id]` | admin | hologram leaderboards |
+| `/skb reload` | admin | reload config, maps, loot and language |
+
+Permissions: `skybattle.command.<sub>`; `join/leave/menu/stats/help` default to everyone,
+everything else to ops. `skybattle.admin` grants all.
+
+## Map setup
+
+1. Put the template world in `<server>/arena/<world>`.
+2. Run `/skb setup <mapId> <world> [solo|quads]`. A temporary copy is loaded and you get the
+   marker axe (left click = mark). Every prompt has clickable **[Done] [Skip] [Undo] [Cancel]**
+   buttons, a boss bar shows the progress and everything you placed glows with a label.
+3. Steps: centre (or *block below me*) → border radius → optional rectangle border → optional
+   height limits → spawns (quads: the 4 corners of each team's 3x3 platform; solo: one block per
+   island; at least 2) → chests per tier → border stages (or *Default stages*).
+4. The map is saved to `plugins/SkyBattle/arena/<mapId>.yml`; click the reload button.
+
+Arena files can also be edited by hand:
+
+```yaml
+id: pagodas
+display-name: "Pagodas"
+mode: quads            # solo | quads
+template-world: pagodas
+center: {x: 0, y: 80, z: 0}
+initial-border-radius: 120
+# initial-boundary-wall: {x1: -100, x2: 100, z1: -100, z2: 100}   # square border instead of circle
+vertical-boundary: {lower-y: -1, upper-y: -1}                      # -1 = disabled
+boundary-stages:
+  - {x-distance-from-center: 70, z-distance-from-center: 70, delay-seconds: 60, duration-seconds: 45}
+team-spawns:
+  - color: RED
+    spawns: ["10.5,81,10.5", "12.5,81,10.5", "10.5,81,12.5", "12.5,81,12.5"]
+commonchest: ["20,80,0"]
+legendarychest: ["0,82,0"]
 ```
 
-`/skb start [arena]` creates a random runtime arena id and starts the game with
-all players in the command sender's current world. If `[arena]` is omitted,
-SkyBattle randomly selects one loaded arena template.
+## Loot tables
 
-## Resource Pack
+`plugins/SkyBattle/loot/<mode>/<tier>.yml`. A chest picks `rolls` different variants by weight:
 
-Resource pack files are intentionally ignored by Git:
-
-```text
-src/main/resources/resourcepacks/
-src/main/resources/resourcepack-src/
+```yaml
+rolls: 2
+variants:
+  - weight: 2
+    items:
+      - material: BOW
+        enchantments: {power: 1}
+      - material: ARROW
+        amount: 4
+  - weight: 1
+    items:
+      - alias: timed_orb_of_harming
 ```
 
-Before distributing the resource pack, create it in the external pack directory:
+Items accept `material`, `alias`, `amount`, `name`, `lore`, `enchantments` (Minecraft keys).
+The same format is used for the kits in `config.yml`. Loot tables from 0.1.0
+(`loot/<tier>.yml`) are no longer read; copy your changes into `loot/quads/`.
 
-```text
-src/main/resources/resourcepacks/skybattle-items.zip
-```
+## Resource pack
 
-This zip is no longer packaged into the plugin jar. Custom orbs and sparks only
-render after players load the pack through native server configuration, a
-proxy/CDN, or another external delivery method.
+The pack (orb and spark models) lives in [`resourcepack/pack`](resourcepack/pack) and is zipped
+into the jar during the build. On start it is exported to
+`plugins/SkyBattle/skybattle-resourcepack.zip` for hosting via `server.properties` or a CDN.
+Set `resource-pack.enabled: true` to let MinigameLib serve it automatically (configure the port
+in `plugins/MinigameLib/config.yml`). Without the pack the items fall back to vanilla looks.
 
-`pack.mcmeta` should use:
-
-```json
-{
-  "pack": {
-    "pack_format": 75,
-    "description": "SkyBattle Resource"
-  }
-}
-```
-
-SkyBattle no longer sends the resource pack through MinigameLib. Use the
-server's native `server-resource-pack` configuration, a proxy/CDN, or another
-external delivery method to distribute the pack.
-
-### Loot Chest Blocks
-
-SkyBattle maps tiers to chest block types as follows:
-
-- common: `CHEST`
-- uncommon: `WAXED_COPPER_CHEST`
-- rare: `WAXED_EXPOSED_COPPER_CHEST`
-- epic: `WAXED_WEATHERED_COPPER_CHEST`
-- legendary: `WAXED_OXIDIZED_COPPER_CHEST`
-
-Loot chests use vanilla Minecraft block textures. Do not include chest entity
-texture overrides in the SkyBattle resource pack unless you intentionally want
-to replace these vanilla looks.
-
-### Required Orb And Spark Items
-
-Potion orbs and sparks use MinigameLib `ItemDisplay` projectiles. Provide item
-models/textures for these material and custom model data pairs:
-
-```text
-FIRE_CHARGE   custom_model_data=1001  Timed Orb of Harming
-SLIME_BALL    custom_model_data=1002  Quick Timed Orb of Poison
-SNOWBALL      custom_model_data=1003  Orb of Cleansing
-FEATHER       custom_model_data=1004  Spark of Levitation
-BLAZE_POWDER  custom_model_data=1005  Spark of Regeneration
-```
-
-Expected resource pack entries:
-
-```text
-assets/minecraft/models/item/fire_charge.json
-assets/minecraft/models/item/slime_ball.json
-assets/minecraft/models/item/snowball.json
-assets/minecraft/models/item/feather.json
-assets/minecraft/models/item/blaze_powder.json
-assets/skybattle/models/item/timed_orb_of_harming.json
-assets/skybattle/models/item/quick_timed_orb_of_poison.json
-assets/skybattle/models/item/orb_of_cleansing.json
-assets/skybattle/models/item/spark_of_levitation.json
-assets/skybattle/models/item/spark_of_regeneration.json
-assets/skybattle/textures/item/timed_orb_of_harming.png
-assets/skybattle/textures/item/quick_timed_orb_of_poison.png
-assets/skybattle/textures/item/orb_of_cleansing.png
-assets/skybattle/textures/item/spark_of_levitation.png
-assets/skybattle/textures/item/spark_of_regeneration.png
-```
+Regenerate the textures with `python3 resourcepack/tools/generate_pack.py` (needs Pillow).
 
 ## Build
 
 ```bash
-mvn package
+# in MinigameLib
+mvn install
+# here
+mvn package                 # target/skybattle-0.2.0.jar
+mvn -Ppaper-26 compile      # optional: check against the 26.x API
 ```
-
-The plugin jar is written to `target/`.
